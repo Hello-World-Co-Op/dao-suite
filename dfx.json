@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "canisters": {
+    "foundery_os_suite_assets": {
+      "type": "assets",
+      "source": ["dist"],
+      "build": ["npm run build"]
+    }
+  },
+  "defaults": {
+    "build": {
+      "packtool": ""
+    }
+  },
+  "networks": {
+    "local": {
+      "bind": "127.0.0.1:4943",
+      "type": "ephemeral"
+    },
+    "testnet": {
+      "providers": ["https://ic0.app"],
+      "type": "persistent"
+    },
+    "mainnet": {
+      "providers": ["https://ic0.app"],
+      "type": "persistent"
+    }
+  }
+}
