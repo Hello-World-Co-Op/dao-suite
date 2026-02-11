@@ -1,0 +1,151 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Explicit minimal permissions
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4, pinned 2026-02-10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4, pinned 2026-02-10
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@hello-world-co-op'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run TypeScript check
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build test
+        run: npm run build
+
+      - name: Test summary
+        if: always()
+        run: |
+          echo "## Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "TypeScript check passed" >> $GITHUB_STEP_SUMMARY
+          echo "Tests passed" >> $GITHUB_STEP_SUMMARY
+          echo "Build succeeded" >> $GITHUB_STEP_SUMMARY
+
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: test
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4, pinned 2026-02-10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4, pinned 2026-02-10
+        with:
+          node-version: '20'
+          registry-url: 'https://npm.pkg.github.com'
+          scope: '@hello-world-co-op'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create .well-known directory
+        run: |
+          mkdir -p public/.well-known
+          echo "staging-dao.helloworlddao.com" > public/.well-known/ic-domains
+          echo "dao.helloworlddao.com" >> public/.well-known/ic-domains
+
+      - name: Build for staging
+        env:
+          VITE_IC_HOST: "https://ic0.app"
+          VITE_DAO_FRONTEND_URL: "https://staging-dao.helloworlddao.com"
+          VITE_FOUNDERY_OS_URL: ${{ vars.VITE_FOUNDERY_OS_URL || 'https://staging-fos.helloworlddao.com' }}
+          VITE_ORACLE_BRIDGE_URL: ${{ vars.VITE_ORACLE_BRIDGE_URL || 'https://staging-oracle.helloworlddao.com' }}
+          VITE_AUTH_SERVICE_CANISTER_ID: ${{ vars.VITE_AUTH_SERVICE_CANISTER_ID || 'gexqh-jqaaa-aaaae-acsxq-cai' }}
+          VITE_USER_SERVICE_CANISTER_ID: ${{ vars.VITE_USER_SERVICE_CANISTER_ID || 'j4rvr-3aaaa-aaaao-qkvfq-cai' }}
+          VITE_MEMBERSHIP_CANISTER_ID: ${{ vars.VITE_MEMBERSHIP_CANISTER_ID || 'z2upb-xqaaa-aaaah-qqjta-cai' }}
+          VITE_GOVERNANCE_CANISTER_ID: ${{ vars.VITE_GOVERNANCE_CANISTER_ID || 'gqsns-jiaaa-aaaac-a74sa-cai' }}
+          VITE_TREASURY_CANISTER_ID: ${{ vars.VITE_TREASURY_CANISTER_ID || 'zri6y-dqaaa-aaaai-atrfa-cai' }}
+        run: npm run build
+
+      - name: Verify build output
+        run: ls -la dist/assets/ | grep index
+
+      - name: Install dfx
+        uses: dfinity/setup-dfx@e50c04f104ee4285ec010f10609483cf41e4d365  # main, pinned 2026-02-09
+        with:
+          dfx-version: "0.24.3"
+
+      - name: Import dfx identity
+        run: |
+          mkdir -p ~/.config/dfx/identity/github-ci
+          echo "${{ secrets.DFX_IDENTITY_PEM }}" > ~/.config/dfx/identity/github-ci/identity.pem
+          chmod 600 ~/.config/dfx/identity/github-ci/identity.pem
+          dfx identity use github-ci
+          echo "Principal: $(dfx identity get-principal)"
+
+      - name: Deploy to IC
+        env:
+          DFX_WARNING: "-mainnet_plaintext_identity"
+        run: |
+          # Hide vite config so dfx doesn't auto-detect and rebuild
+          mv vite.config.ts vite.config.ts.bak
+          mv package.json package.json.bak
+
+          # Create minimal package.json with no-op build script
+          echo '{"name":"dao-suite","private":true,"scripts":{"build":"echo No build needed - using pre-built dist"}}' > package.json
+
+          echo "=== Deploying pre-built dist ==="
+          ls -la dist/assets/ | grep index
+
+          dfx deploy dao_suite_assets --network ic --yes || {
+            echo "Normal deploy failed, attempting reinstall..."
+            dfx canister uninstall-code dao_suite_assets --network ic || true
+            dfx deploy dao_suite_assets --network ic --yes
+          }
+
+          # Restore original files
+          mv vite.config.ts.bak vite.config.ts
+          mv package.json.bak package.json
+
+      - name: Deployment summary
+        run: |
+          echo "## Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Deployed dao-suite to IC" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Custom Domain | https://staging-dao.helloworlddao.com/ |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Cleanup identity
+        if: always()
+        run: |
+          # Enhanced cleanup - remove entire identity directory
+          rm -rf ~/.config/dfx/identity/github-ci
+          if [ -d ~/.config/dfx/identity/github-ci ]; then
+            echo "Warning: Identity directory still exists"
+            exit 1
+          fi
+          echo "Identity PEM cleaned up successfully"

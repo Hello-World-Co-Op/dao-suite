@@ -1,3 +1,9 @@
+/**
+ * Local Alert component (shadcn/ui pattern).
+ *
+ * Bridge pattern: @hello-world-co-op/ui does NOT export an Alert component.
+ * This local copy is required until Alert is added to the shared UI package.
+ */
 import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 

@@ -1,3 +1,11 @@
+/**
+ * Local Button component (shadcn/ui pattern).
+ *
+ * Bridge pattern: @hello-world-co-op/ui exports a Button with a different API
+ * (additional `loading` prop, different aria attributes, and focus ring styling).
+ * This local copy is kept to avoid breaking existing consumers that depend on
+ * the exact shadcn/ui variant API. Future work should converge these components.
+ */
 import * as React from 'react';
 import { Slot } from '@radix-ui/react-slot';
 import { cva, type VariantProps } from 'class-variance-authority';

@@ -1,3 +1,10 @@
+/**
+ * Local Input component (shadcn/ui pattern).
+ *
+ * Bridge pattern: @hello-world-co-op/ui exports an Input with a different API
+ * (built-in label, error message display, helper text). This local copy is the
+ * simpler shadcn/ui variant. Future work should converge these components.
+ */
 import * as React from 'react';
 
 import { cn } from '@/utils';

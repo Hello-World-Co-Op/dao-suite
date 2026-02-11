@@ -1,3 +1,10 @@
+/**
+ * Local Label component (shadcn/ui pattern using @radix-ui/react-label).
+ *
+ * Bridge pattern: @hello-world-co-op/ui exports a Label with a different API
+ * (required indicator, size variants). This local copy uses Radix UI primitives
+ * directly with CVA styling. Future work should converge these components.
+ */
 import * as React from 'react';
 import * as LabelPrimitive from '@radix-ui/react-label';
 import { cva, type VariantProps } from 'class-variance-authority';

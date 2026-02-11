@@ -1,3 +1,11 @@
+/**
+ * Local Card component (shadcn/ui pattern).
+ *
+ * Bridge pattern: @hello-world-co-op/ui exports Card components with a different
+ * API (uses <article> instead of <div>, CardTitle uses heading elements with an
+ * `as` prop). This local copy is kept to avoid breaking existing consumers.
+ * Future work should converge these components.
+ */
 import * as React from 'react';
 
 import { cn } from '@/utils';

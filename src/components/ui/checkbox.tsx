@@ -1,3 +1,10 @@
+/**
+ * Local Checkbox component (shadcn/ui pattern using @radix-ui/react-checkbox).
+ *
+ * Bridge pattern: @hello-world-co-op/ui exports a Checkbox with a different API
+ * (custom label integration, error state support). This local copy uses Radix UI
+ * primitives directly. Future work should converge these components.
+ */
 import * as React from 'react';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';
 import { Check } from 'lucide-react';

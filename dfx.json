@@ -1,7 +1,7 @@
 {
   "version": 1,
   "canisters": {
-    "foundery_os_suite_assets": {
+    "dao_suite_assets": {
       "type": "assets",
       "source": ["dist"],
       "build": ["npm run build"]

@@ -15,8 +15,8 @@ import { Toast } from './Toast';
 import type { Toast as ToastType } from '@/stores';
 
 // Mock the removeToast action from state
-vi.mock('@hwdao/state', async () => {
-  const actual = await vi.importActual('@hwdao/state');
+vi.mock('@/stores', async () => {
+  const actual = await vi.importActual('@/stores');
   return {
     ...actual,
     removeToast: vi.fn(),
