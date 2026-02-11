@@ -14,18 +14,20 @@
 /**
  * Allowed path prefixes for redirects.
  * Only paths starting with these prefixes are considered valid.
+ * Updated to match actual dao-suite routes from App.tsx.
  */
 const ALLOWED_PATH_PREFIXES = [
   '/dashboard',
-  '/profile',
   '/settings',
-  '/member',
-  '/admin',
-  '/campaigns',
-  '/governance',
+  '/kyc',
+  '/membership',
+  '/renewal',
+  '/payment',
   '/proposals',
-  '/voting',
-  '/register',
+  '/notifications',
+  '/burn-donation',
+  '/escrow',
+  '/members',
 ];
 
 /**

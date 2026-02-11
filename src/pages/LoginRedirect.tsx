@@ -6,17 +6,25 @@
  * FounderyOS login page, preserving the return URL so they can be
  * sent back after authentication.
  *
+ * Security: Uses location.state.from from ProtectedRoute to get the
+ * return URL, avoiding open redirect vulnerabilities from query params.
+ *
  * @see FAS-6.1 - DAO Suite extraction
  */
 
 import { useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
+import { validateReturnUrl } from '../utils/validateReturnUrl';
 
 export default function LoginRedirect() {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const message = searchParams.get('message');
-  const returnUrl = searchParams.get('returnUrl');
+
+  // Get return URL from location state (set by ProtectedRoute)
+  const fromLocation = location.state?.from?.pathname;
+  const validatedReturnUrl = validateReturnUrl(fromLocation);
 
   useEffect(() => {
     // Build the FounderyOS login URL with returnUrl pointing back to dao-suite
@@ -26,17 +34,15 @@ export default function LoginRedirect() {
     const loginUrl = new URL('/login', founderyOsUrl);
 
     // Pass the dao-suite return URL so FounderyOS can redirect back after login
-    if (returnUrl) {
-      const daoSuiteOrigin = window.location.origin;
-      loginUrl.searchParams.set('returnUrl', `${daoSuiteOrigin}${returnUrl}`);
-    }
+    const daoSuiteOrigin = window.location.origin;
+    loginUrl.searchParams.set('returnUrl', `${daoSuiteOrigin}${validatedReturnUrl}`);
 
     if (message) {
       loginUrl.searchParams.set('message', message);
     }
 
     window.location.href = loginUrl.toString();
-  }, [message, returnUrl]);
+  }, [message, validatedReturnUrl]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-50">
