@@ -73,14 +73,14 @@ jobs:
       - name: Create .well-known directory
         run: |
           mkdir -p public/.well-known
-          echo "staging-dao.helloworlddao.com" > public/.well-known/ic-domains
-          echo "dao.helloworlddao.com" >> public/.well-known/ic-domains
+          echo "staging-portal.helloworlddao.com" > public/.well-known/ic-domains
+          echo "portal.helloworlddao.com" >> public/.well-known/ic-domains
 
       - name: Build for staging
         env:
           VITE_IC_HOST: "https://ic0.app"
-          VITE_DAO_FRONTEND_URL: "https://staging-dao.helloworlddao.com"
-          VITE_FOUNDERY_OS_URL: ${{ vars.VITE_FOUNDERY_OS_URL || 'https://staging-fos.helloworlddao.com' }}
+          VITE_DAO_FRONTEND_URL: "https://staging-portal.helloworlddao.com"
+          VITE_FOUNDERY_OS_URL: ${{ vars.VITE_FOUNDERY_OS_URL || 'https://staging-foundery.helloworlddao.com' }}
           VITE_ORACLE_BRIDGE_URL: ${{ vars.VITE_ORACLE_BRIDGE_URL || 'https://staging-oracle.helloworlddao.com' }}
           VITE_AUTH_SERVICE_CANISTER_ID: ${{ vars.VITE_AUTH_SERVICE_CANISTER_ID || 'gexqh-jqaaa-aaaae-acsxq-cai' }}
           VITE_USER_SERVICE_CANISTER_ID: ${{ vars.VITE_USER_SERVICE_CANISTER_ID || 'j4rvr-3aaaa-aaaao-qkvfq-cai' }}
@@ -137,7 +137,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Field | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Custom Domain | https://staging-dao.helloworlddao.com/ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Custom Domain | https://staging-portal.helloworlddao.com/ |" >> $GITHUB_STEP_SUMMARY
 
       - name: Cleanup identity
         if: always()
