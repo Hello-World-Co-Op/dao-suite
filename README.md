@@ -156,3 +156,14 @@ src/
   types/                   # TypeScript type definitions
   test/                    # Test setup and utilities
 ```
+
+## FAS Developer Documentation
+
+This suite is part of the [Frontend Application Split (FAS)](https://github.com/Hello-World-Co-Op/docs/blob/main/developer/fas-architecture.md) project. It uses the **Auth Bridge pattern** with cookie-based SSO.
+
+- [FAS Architecture Overview](https://github.com/Hello-World-Co-Op/docs/blob/main/developer/fas-architecture.md) -- Package/suite architecture, dependency diagram, CI/CD pipeline
+- [FAS Repository Map](https://github.com/Hello-World-Co-Op/docs/blob/main/developer/fas-repository-map.md) -- All FAS repos and "where do I make changes?"
+- [FAS Local Setup Guide](https://github.com/Hello-World-Co-Op/docs/blob/main/developer/fas-local-setup.md) -- Suite-specific setup (requires oracle-bridge)
+- [FAS Auth Debugging](https://github.com/Hello-World-Co-Op/docs/blob/main/developer/fas-auth-debugging.md) -- Cross-suite SSO troubleshooting
+- [FAS Troubleshooting](https://github.com/Hello-World-Co-Op/docs/blob/main/developer/fas-troubleshooting.md) -- Common issues and fixes (see SSO section)
+- [FAS Rollback Procedures](https://github.com/Hello-World-Co-Op/docs/blob/main/developer/fas-rollback-procedures.md) -- Suite-specific rollback steps
