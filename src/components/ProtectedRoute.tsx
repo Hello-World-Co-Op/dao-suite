@@ -158,7 +158,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     };
 
     checkAuth();
-  }, [refreshTokens]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Show loading spinner while checking authentication
   if (checking) {
