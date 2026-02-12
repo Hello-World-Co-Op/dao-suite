@@ -11,6 +11,7 @@ import {
 } from '../utils/auth';
 import { getDeviceFingerprint } from '../utils/deviceFingerprint';
 import { useAuthService } from '../hooks/useAuthService';
+import { checkSession } from '../services/authCookieClient';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -21,7 +22,12 @@ interface ProtectedRouteProps {
  * ProtectedRoute Component
  *
  * Wraps protected pages and ensures user is authenticated before rendering.
- * Handles automatic token refresh if access token is expired but refresh token is valid.
+ *
+ * Auth check order (FAS-8.1 SSO support):
+ * 1. Cookie-based session via oracle-bridge (shared across *.helloworlddao.com)
+ * 2. localStorage tokens (legacy, per-suite)
+ * 3. Token refresh if access token expired
+ *
  * Redirects to login page if user is not authenticated.
  */
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
@@ -33,7 +39,21 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Check if user has valid authentication
+        // FAS-8.1: Check cookie-based session first (cross-suite SSO)
+        // Shared httpOnly cookies on .helloworlddao.com enable SSO across suites
+        try {
+          const session = await checkSession();
+          if (session.authenticated) {
+            setAuthenticated(true);
+            setChecking(false);
+            return;
+          }
+        } catch {
+          // Cookie session check failed (e.g., oracle-bridge unreachable)
+          // Fall through to localStorage check
+        }
+
+        // Legacy: Check localStorage tokens
         if (!isAuthenticated()) {
           setAuthenticated(false);
           setChecking(false);
