@@ -25,6 +25,23 @@ This is a standalone React + Vite application deployed as an IC asset canister. 
 
 Authentication is handled by the FounderyOS suite. The dao-suite redirects unauthenticated users to the FounderyOS login page, which redirects back after successful authentication.
 
+### RBAC Support
+
+This suite uses `@hello-world-co-op/auth@^0.2.0` which provides role-based access control utilities:
+
+- `useRoles()` hook for accessing user roles
+- `<RoleGuard>` component for conditional rendering based on roles
+- `hasRole()` utility for role checks
+
+**Current implementation:** All authenticated users (Member role) can access all features. Role-gated features can be added by wrapping components with `<RoleGuard>`.
+
+**Planned role-gated features:**
+- Proposal moderation (Admin/Moderator roles)
+- Member directory filtering (role-based visibility)
+- Advanced treasury views (Admin role)
+
+**For developers:** See [RBAC Integration Guide](https://github.com/Hello-World-Co-Op/docs/blob/main/developer/rbac-integration.md) for implementing role-based features.
+
 ### Tech Stack
 
 - **Frontend**: React 19, TypeScript, Vite 5
