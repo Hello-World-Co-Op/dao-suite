@@ -44,6 +44,16 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
         try {
           const session = await checkSession();
           if (session.authenticated) {
+            // FAS-8.1: Populate localStorage for legacy components (Dashboard, etc.)
+            // that expect user_data to exist. Cookie SSO doesn't set localStorage.
+            if (!localStorage.getItem('user_data')) {
+              localStorage.setItem('user_data', JSON.stringify({
+                userId: session.userId || 'sso-user',
+                email: '',
+                firstName: 'Member',
+                lastName: '',
+              }));
+            }
             setAuthenticated(true);
             setChecking(false);
             return;
