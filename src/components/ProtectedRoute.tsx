@@ -90,20 +90,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
             const timezone = getTimezone();
             const userAgent = getUserAgent();
 
-            // Get IP address (optional)
-            let ipAddress: string | undefined;
-            try {
-              const response = await fetch('https://api.ipify.org?format=json');
-              const ipData = await response.json();
-              ipAddress = ipData.ip;
-            } catch (_error) {
-              console.warn('Failed to get IP address for token refresh');
-            }
-
             const result = await refreshTokens(
               refreshToken,
               deviceFingerprint,
-              ipAddress,
+              undefined, // IP address - not needed for auth guard refresh
               timezone,
               userAgent
             );
