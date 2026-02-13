@@ -5,15 +5,18 @@ DAO member dashboard suite for the Hello World Co-Op platform. Provides a dedica
 ## Features
 
 - **Dashboard** - Member overview with account info, quick actions, and navigation
-- **Proposals** - Browse, create, and vote on governance proposals with AI-assisted drafting (Think Tank)
-- **Voting** - Cast votes with real-time tally updates and countdown timers
-- **Membership** - View membership status, renewal flow, and payment history
+- **Membership Gating** - Registered users see upgrade prompt, Active members access full features
+- **Proposals** - Browse, create, and vote on governance proposals with AI-assisted drafting (Think Tank) - Active membership required
+- **Voting** - Cast votes with real-time tally updates and countdown timers - Active membership required
+- **Membership** - View membership status (Registered/Active), upgrade flow for 18+, renewal flow, and payment history
 - **Treasury** - View DAO treasury balances and transaction history
 - **Token Balance** - View DOM token balance with burn donation support
 - **Escrow** - View escrow contracts, milestones, and release status
 - **Member Directory** - Browse DAO members with search, filtering, and contact requests
 - **Notifications** - In-app notification system with configurable preferences
 - **Settings** - Account settings, Internet Identity linking, and device management
+
+**Note:** Otter Camp is NOT gated by membership status - all authenticated users can access regardless of Registered/Active status.
 
 ## Architecture
 
@@ -168,19 +171,23 @@ src/
   components/              # Shared components
     ui/                    # Base UI components (shadcn/ui bridge pattern)
     ProtectedRoute.tsx     # Authentication route guard
+    MembershipGuard.tsx    # Membership status guard (Registered vs Active)
     ErrorBoundary.tsx      # Error boundary wrapper
     Toast.tsx              # Toast notification component
+    UpgradePrompt.tsx      # Upgrade prompt for Registered users
     ...
   features/                # Feature modules
-    proposal-creation/     # AI-assisted proposal wizard
-    proposals/             # Proposal listing and filtering
-    voting/                # Voting panel and tally display
+    proposal-creation/     # AI-assisted proposal wizard (Active only)
+    proposals/             # Proposal listing and filtering (Active only)
+    voting/                # Voting panel and tally display (Active only)
+    membership/            # Membership status display and upgrade flow
     settings/              # Account settings
   pages/                   # Route-level page components
   stores/                  # Nanostores state management
     atoms/                 # Individual store atoms
   services/                # API and canister service clients
   hooks/                   # Custom React hooks
+    useMembership.ts       # Membership status hook (Registered/Active/Expired/Revoked)
   utils/                   # Utility functions
   types/                   # TypeScript type definitions
   test/                    # Test setup and utilities
