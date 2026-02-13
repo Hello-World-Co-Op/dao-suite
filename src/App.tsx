@@ -10,6 +10,7 @@
 
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from '@hello-world-co-op/auth';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { ToastContainer } from './components/ToastContainer';
@@ -61,6 +62,7 @@ function PageLoader() {
 
 export default function App() {
   return (
+    <AuthProvider config={{ apiBaseUrl: import.meta.env.VITE_ORACLE_BRIDGE_URL }}>
     <BrowserRouter>
       <ErrorBoundary>
         <Suspense fallback={<PageLoader />}>
@@ -106,5 +108,6 @@ export default function App() {
         </div>
       </ErrorBoundary>
     </BrowserRouter>
+    </AuthProvider>
   );
 }
