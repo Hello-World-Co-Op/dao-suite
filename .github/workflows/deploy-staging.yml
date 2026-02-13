@@ -81,6 +81,9 @@ jobs:
           VITE_IC_HOST: "https://ic0.app"
           VITE_DAO_FRONTEND_URL: "https://staging-portal.helloworlddao.com"
           VITE_FOUNDERY_OS_URL: ${{ vars.VITE_FOUNDERY_OS_URL || 'https://staging-foundery.helloworlddao.com' }}
+          VITE_GOVERNANCE_SUITE_URL: "https://staging-governance.helloworlddao.com"
+          VITE_OTTER_CAMP_URL: "https://staging-ottercamp.helloworlddao.com"
+          VITE_ADMIN_SUITE_URL: "https://staging-admin.helloworlddao.com"
           VITE_ORACLE_BRIDGE_URL: ${{ vars.VITE_ORACLE_BRIDGE_URL || 'https://staging-oracle.helloworlddao.com' }}
           VITE_AUTH_SERVICE_CANISTER_ID: ${{ vars.VITE_AUTH_SERVICE_CANISTER_ID || 'gexqh-jqaaa-aaaae-acsxq-cai' }}
           VITE_USER_SERVICE_CANISTER_ID: ${{ vars.VITE_USER_SERVICE_CANISTER_ID || 'j4rvr-3aaaa-aaaao-qkvfq-cai' }}
