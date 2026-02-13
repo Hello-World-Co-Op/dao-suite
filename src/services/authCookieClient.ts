@@ -239,6 +239,7 @@ export async function login(email: string, password: string): Promise<LoginResul
       userId: data.user_id,
       accessExpiresAt: data.access_expires_at,
       refreshExpiresAt: data.refresh_expires_at,
+      membershipStatus: data.membership_status ?? null,
     });
 
     return {

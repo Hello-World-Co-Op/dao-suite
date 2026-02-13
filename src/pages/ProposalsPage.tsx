@@ -194,7 +194,7 @@ export function ProposalsPage() {
       return <EmptyStateFiltered />;
     }
     return <EmptyStateNoProposals isMember={isActiveMember} />;
-  }, [proposals.length, isLoading, filters, totalCount, userIsAuthenticated]);
+  }, [proposals.length, isLoading, filters, totalCount, isActiveMember]);
 
   // Result count message for aria-live
   const resultMessage = useMemo(() => {

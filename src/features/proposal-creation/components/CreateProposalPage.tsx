@@ -31,7 +31,7 @@ export function CreateProposalPage() {
   const navigate = useNavigate();
   const params = useParams<{ draftId?: string }>();
   const { isAuthenticated, principal } = useAuth();
-  const { isActiveMember } = useMembership();
+  const { isActiveMember, isLoading: isMembershipLoading } = useMembership();
   const [showVerificationError, setShowVerificationError] = useState(false);
 
   const isResuming = !!params.draftId;
@@ -50,12 +50,12 @@ export function CreateProposalPage() {
     }
   }, [isResuming, params.draftId]);
 
-  // Check SBT verification
+  // Check SBT verification (wait for membership status to load)
   useEffect(() => {
-    if (isAuthenticated && !isActiveMember) {
+    if (isAuthenticated && !isMembershipLoading && !isActiveMember) {
       setShowVerificationError(true);
     }
-  }, [isAuthenticated, isActiveMember]);
+  }, [isAuthenticated, isMembershipLoading, isActiveMember]);
 
   const handleComplete = (draftId: string) => {
     // Navigate to submission confirmation or proposal detail
