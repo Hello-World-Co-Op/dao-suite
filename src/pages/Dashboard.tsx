@@ -18,7 +18,6 @@ import {
 import { useNotificationPoller } from '@/services/notificationPoller';
 import { TokenBalance } from '@/components/TokenBalance';
 import { TreasuryView } from '@/components/TreasuryView';
-import { clearTokenBalance, clearTreasury, clearBurnPool, clearEscrow } from '@/stores';
 import { PageHeader } from '@/components/layout';
 
 interface UserData {
