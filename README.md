@@ -147,6 +147,18 @@ See `.env.example` for all available configuration options. Key variables:
 | `VITE_FOUNDERY_OS_URL` | FounderyOS URL (for login redirect) | `http://127.0.0.1:5174` |
 | `VITE_DEV_AUTH_BYPASS` | Skip auth in development | `false` |
 
+#### Cross-Suite Navigation URLs
+
+These environment variables configure the cross-suite navigation menu (SuiteSwitcher component):
+
+| Variable | Description | Example (Staging) |
+|----------|-------------|-------------------|
+| `VITE_DAO_FRONTEND_URL` | DAO portal URL (this suite) | `https://staging-portal.helloworlddao.com` |
+| `VITE_FOUNDERY_OS_URL` | FounderyOS productivity suite URL | `https://staging-foundery.helloworlddao.com` |
+| `VITE_GOVERNANCE_SUITE_URL` | Governance suite URL | `https://staging-governance.helloworlddao.com` |
+| `VITE_OTTER_CAMP_URL` | Otter Camp game URL | `https://staging-ottercamp.helloworlddao.com` |
+| `VITE_ADMIN_SUITE_URL` | Admin dashboard URL (admin users only) | `https://staging-admin.helloworlddao.com` |
+
 ## Project Structure
 
 ```
