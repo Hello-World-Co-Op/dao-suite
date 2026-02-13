@@ -18,7 +18,6 @@ import {
 import { useNotificationPoller } from '@/services/notificationPoller';
 import { TokenBalance } from '@/components/TokenBalance';
 import { TreasuryView } from '@/components/TreasuryView';
-import { PageHeader } from '@/components/layout';
 
 interface UserData {
   userId: string;
@@ -90,9 +89,6 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
-      {/* Header with suite switcher - BL-010.2 */}
-      <PageHeader />
-
       <div className="py-8 px-4">
         <div className="max-w-6xl mx-auto">
           {/* Welcome message */}

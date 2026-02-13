@@ -13,6 +13,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '@hello-world-co-op/auth';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AppLayout } from './components/layout';
 import { ToastContainer } from './components/ToastContainer';
 import { OfflineBannerStandalone } from './components/OfflineBanner';
 
@@ -71,31 +72,33 @@ export default function App() {
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/login" element={<LoginRedirect />} />
 
-            {/* Protected routes - require authentication */}
-            <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-            <Route path="/kyc" element={<ProtectedRoute><KYC /></ProtectedRoute>} />
-            <Route path="/membership/renewal" element={<ProtectedRoute><MembershipRenewal /></ProtectedRoute>} />
-            <Route path="/membership/payment-history" element={<ProtectedRoute><PaymentHistory /></ProtectedRoute>} />
-            <Route path="/renewal/success" element={<ProtectedRoute><RenewalSuccess /></ProtectedRoute>} />
-            <Route path="/renewal/cancel" element={<ProtectedRoute><RenewalCancel /></ProtectedRoute>} />
-            <Route path="/payment/success" element={<ProtectedRoute><PaymentSuccess /></ProtectedRoute>} />
-            <Route path="/payment/cancel" element={<ProtectedRoute><PaymentCancel /></ProtectedRoute>} />
-            {/* Proposal routes */}
-            <Route path="/proposals" element={<ProtectedRoute><ProposalsPage /></ProtectedRoute>} />
-            <Route path="/proposals/create" element={<ProtectedRoute><CreateProposalPage /></ProtectedRoute>} />
-            <Route path="/proposals/draft/:draftId/edit" element={<ProtectedRoute><CreateProposalPage /></ProtectedRoute>} />
-            <Route path="/proposals/draft/:draftId/confirm" element={<ProtectedRoute><SubmitConfirmation /></ProtectedRoute>} />
-            <Route path="/proposals/:proposalId" element={<ProtectedRoute><ProposalDetailPage /></ProtectedRoute>} />
-            {/* Notifications */}
-            <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
-            {/* Burn Donation */}
-            <Route path="/burn-donation" element={<ProtectedRoute><BurnDonationPage /></ProtectedRoute>} />
-            {/* Escrow View */}
-            <Route path="/escrow" element={<ProtectedRoute><EscrowViewPage /></ProtectedRoute>} />
-            {/* Member Directory */}
-            <Route path="/members" element={<ProtectedRoute><MemberDirectoryPage /></ProtectedRoute>} />
+            {/* Protected routes - require authentication, wrapped with AppLayout (PageHeader + Outlet) */}
+            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/kyc" element={<KYC />} />
+              <Route path="/membership/renewal" element={<MembershipRenewal />} />
+              <Route path="/membership/payment-history" element={<PaymentHistory />} />
+              <Route path="/renewal/success" element={<RenewalSuccess />} />
+              <Route path="/renewal/cancel" element={<RenewalCancel />} />
+              <Route path="/payment/success" element={<PaymentSuccess />} />
+              <Route path="/payment/cancel" element={<PaymentCancel />} />
+              {/* Proposal routes */}
+              <Route path="/proposals" element={<ProposalsPage />} />
+              <Route path="/proposals/create" element={<CreateProposalPage />} />
+              <Route path="/proposals/draft/:draftId/edit" element={<CreateProposalPage />} />
+              <Route path="/proposals/draft/:draftId/confirm" element={<SubmitConfirmation />} />
+              <Route path="/proposals/:proposalId" element={<ProposalDetailPage />} />
+              {/* Notifications */}
+              <Route path="/notifications" element={<NotificationsPage />} />
+              {/* Burn Donation */}
+              <Route path="/burn-donation" element={<BurnDonationPage />} />
+              {/* Escrow View */}
+              <Route path="/escrow" element={<EscrowViewPage />} />
+              {/* Member Directory */}
+              <Route path="/members" element={<MemberDirectoryPage />} />
+            </Route>
           </Routes>
         </Suspense>
         {/* Global toast container for notifications */}
