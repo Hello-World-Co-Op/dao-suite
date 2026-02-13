@@ -19,7 +19,7 @@ export default function PrivacyPolicy() {
       <header className="bg-white shadow-sm">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <h1 className="text-3xl font-bold text-gray-900">Privacy Policy</h1>
-          <p className="mt-2 text-sm text-gray-600">Last updated: November 23, 2025</p>
+          <p className="mt-2 text-sm text-gray-600">Last updated: February 13, 2026</p>
         </div>
       </header>
 
@@ -248,6 +248,55 @@ export default function PrivacyPolicy() {
             <strong>Important:</strong> Deleting your KYC data will revoke your verified status and
             may affect your ability to participate in certain DAO activities that require
             verification.
+          </p>
+        </section>
+
+        {/* Children's Privacy (BL-011.6: COPPA Compliance) */}
+        <section
+          className={cn(
+            'bg-amber-50 border border-amber-200 rounded-lg p-6',
+            'prose prose-slate max-w-none'
+          )}
+        >
+          <h2 className="text-2xl font-semibold text-amber-900 mb-4">
+            Children's Privacy
+          </h2>
+          <p className="text-amber-800 leading-relaxed mb-4">
+            Our services are not directed at children under the age of 13. We do not knowingly
+            collect personal information from children under 13 years of age, in compliance with the
+            Children's Online Privacy Protection Act (COPPA).
+          </p>
+          <ul className="list-disc pl-6 space-y-3 text-amber-800">
+            <li>
+              <strong>Age Verification:</strong> We implement age verification during registration
+              to prevent users under 13 from creating accounts. Date of birth is requested before
+              any other personal information is collected.
+            </li>
+            <li>
+              <strong>Under-13 Blocking:</strong> If a user indicates they are under 13, no personal
+              information is collected and account creation is blocked.
+            </li>
+            <li>
+              <strong>Ages 13-17:</strong> Users aged 13-17 may create accounts with limited
+              functionality. Full membership features (voting, governance participation) require
+              users to be at least 18 years old.
+            </li>
+            <li>
+              <strong>Discovery of Under-13 Accounts:</strong> If we discover that a user under 13
+              has created an account, we will promptly disable the account and delete all associated
+              personal data within 72 hours.
+            </li>
+          </ul>
+          <p className="text-amber-800 leading-relaxed mt-6">
+            <strong>Parents and Guardians:</strong> If you believe your child under 13 has provided
+            personal information to us, please contact us immediately at{' '}
+            <a
+              href="mailto:privacy@helloworlddao.com"
+              className="text-amber-700 hover:text-amber-800 underline"
+            >
+              privacy@helloworlddao.com
+            </a>
+            {' '}so we can take appropriate action.
           </p>
         </section>
 
