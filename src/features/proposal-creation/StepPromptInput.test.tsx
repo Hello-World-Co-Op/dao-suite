@@ -110,11 +110,13 @@ describe('StepPromptInput', () => {
     expect(mockOnBack).toHaveBeenCalled();
   });
 
-  it('should use initial value when provided', () => {
+  it('should use initial value when provided', async () => {
     const initialValue = 'This is an initial prompt value that was previously entered by the user.';
     render(<StepPromptInput initialValue={initialValue} onNext={mockOnNext} />);
 
     const textarea = screen.getByLabelText(/Project Description/i);
-    expect(textarea).toHaveValue(initialValue);
+    await waitFor(() => {
+      expect(textarea).toHaveValue(initialValue);
+    });
   });
 });
