@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useNotificationPoller } from '@/services/notificationPoller';
 import { TokenBalance } from '@/components/TokenBalance';
+import { useMembership } from '@/hooks/useMembership';
 import { TreasuryView } from '@/components/TreasuryView';
 
 interface UserData {
@@ -33,10 +34,9 @@ export default function Dashboard() {
   const [kycVerified, setKycVerified] = useState(false);
 
   // Initialize notification polling for authenticated members
-  // TODO: Replace with actual membership status check when membership canister is ready
   const isAuthenticated = !!userData;
-  const isMember = true; // Placeholder until membership verification is implemented
-  useNotificationPoller(isAuthenticated, isMember);
+  const { isActiveMember, isRegistered } = useMembership();
+  useNotificationPoller(isAuthenticated, isActiveMember);
 
   useEffect(() => {
     // Load user data from localStorage
@@ -113,6 +113,29 @@ export default function Dashboard() {
 
           {/* Treasury View Section - Story 9-2-2 */}
           <TreasuryView className="mb-6" />
+
+          {/* Membership Upgrade Prompt - BL-011.5 AC3 */}
+          {isRegistered && (
+            <Card className="mb-6 border-amber-200 bg-amber-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5 text-amber-600" />
+                  Upgrade to Full Membership
+                </CardTitle>
+                <CardDescription>
+                  Upgrade to full membership to vote on proposals, participate in governance, and access exclusive member benefits.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  className="w-full bg-amber-600 hover:bg-amber-700"
+                  onClick={() => navigate('/membership')}
+                >
+                  Upgrade Membership
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           {/* User Info Card */}
           <Card className="mb-6">

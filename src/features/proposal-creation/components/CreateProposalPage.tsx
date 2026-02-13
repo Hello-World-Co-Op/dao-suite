@@ -16,13 +16,13 @@ import { Button } from '../../../components/ui/button';
 import { setCurrentDraft } from '@/stores';
 import { getUserId } from '../../../utils/auth';
 import { captureEvent } from '../../../utils/posthog';
+import { useMembership } from '@/hooks/useMembership';
 
 // TODO: Replace with actual auth hook when available
 const useAuth = () => {
   // Mock auth state - replace with actual implementation
   return {
     isAuthenticated: true,
-    hasSBT: true, // Soul-Bound Token verification
     principal: getUserId() || 'mock-principal-id',
   };
 };
@@ -30,7 +30,8 @@ const useAuth = () => {
 export function CreateProposalPage() {
   const navigate = useNavigate();
   const params = useParams<{ draftId?: string }>();
-  const { isAuthenticated, hasSBT, principal } = useAuth();
+  const { isAuthenticated, principal } = useAuth();
+  const { isActiveMember } = useMembership();
   const [showVerificationError, setShowVerificationError] = useState(false);
 
   const isResuming = !!params.draftId;
@@ -51,10 +52,10 @@ export function CreateProposalPage() {
 
   // Check SBT verification
   useEffect(() => {
-    if (isAuthenticated && !hasSBT) {
+    if (isAuthenticated && !isActiveMember) {
       setShowVerificationError(true);
     }
-  }, [isAuthenticated, hasSBT]);
+  }, [isAuthenticated, isActiveMember]);
 
   const handleComplete = (draftId: string) => {
     // Navigate to submission confirmation or proposal detail

@@ -64,6 +64,7 @@ export interface LoginResult {
   userId?: string;
   accessExpiresAt?: number;
   refreshExpiresAt?: number;
+  membershipStatus?: string | null;
 }
 
 export interface SessionStatus {
@@ -71,6 +72,7 @@ export interface SessionStatus {
   userId?: string;
   accessExpiresAt?: number;
   refreshExpiresAt?: number;
+  membershipStatus?: string | null;
 }
 
 export interface RefreshResult {
@@ -245,6 +247,7 @@ export async function login(email: string, password: string): Promise<LoginResul
       userId: data.user_id,
       accessExpiresAt: data.access_expires_at,
       refreshExpiresAt: data.refresh_expires_at,
+      membershipStatus: data.membership_status ?? null,
     };
   } catch (error) {
     clearSessionState();
@@ -369,6 +372,7 @@ export async function checkSession(): Promise<SessionStatus> {
       userId: data.user_id,
       accessExpiresAt: data.access_expires_at,
       refreshExpiresAt: data.refresh_expires_at,
+      membershipStatus: data.membership_status ?? null,
     };
 
     updateSessionState(status);

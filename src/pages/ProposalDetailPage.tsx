@@ -15,6 +15,7 @@ import { Button } from '../components/ui/button';
 import { GovernanceCanisterService, type ProposalStatus } from '../services/governanceCanister';
 import { $proposals, type SubmittedProposal, showSuccess, showError } from '@/stores';
 import { CanisterUnavailable } from '../components/CanisterUnavailable';
+import { useMembership } from '@/hooks/useMembership';
 import {
   VotingPanel,
   VoteTally,
@@ -43,8 +44,8 @@ export function ProposalDetailPage() {
   const [loading, setLoading] = useState(true);
   const [forceRefreshTally, setForceRefreshTally] = useState(false);
 
-  // Mock member status (in real app, would check SBT)
-  const [isMember] = useState(true);
+  // BL-011.5: Get real membership status from session
+  const { isActiveMember } = useMembership();
 
   // Fetch proposal status and details
   useEffect(() => {
@@ -227,7 +228,7 @@ export function ProposalDetailPage() {
             votingEndsAt={status.votingEnds}
             isActive={isActive}
             userVote={userVote}
-            isMember={isMember}
+            isMember={isActiveMember}
             isSubmitting={isSubmitting}
             onVote={handleVote}
           />

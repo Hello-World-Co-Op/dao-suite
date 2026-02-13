@@ -23,6 +23,7 @@ import {
 } from '@/stores';
 import { Button } from '../components/ui/button';
 import { isAuthenticated } from '../utils/auth';
+import { useMembership } from '@/hooks/useMembership';
 import {
   ProposalCard,
   ProposalFilters,
@@ -135,6 +136,7 @@ export function ProposalsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const userIsAuthenticated = isAuthenticated();
+  const { isActiveMember } = useMembership();
   const drafts = useStore($draftsList);
   const votedProposalIds = useStore($userVotedProposalIds);
   const filters = useStore($proposalFilters);
@@ -191,7 +193,7 @@ export function ProposalsPage() {
     if (hasFilters) {
       return <EmptyStateFiltered />;
     }
-    return <EmptyStateNoProposals isMember={userIsAuthenticated} />;
+    return <EmptyStateNoProposals isMember={isActiveMember} />;
   }, [proposals.length, isLoading, filters, totalCount, userIsAuthenticated]);
 
   // Result count message for aria-live
@@ -215,7 +217,19 @@ export function ProposalsPage() {
           <p className="mt-1 text-gray-600">Browse and vote on governance proposals</p>
         </div>
         {userIsAuthenticated && (
-          <Button onClick={() => navigate('/proposals/create')}>Create Proposal</Button>
+          <div className="relative group">
+            <Button
+              onClick={() => navigate('/proposals/create')}
+              disabled={!isActiveMember}
+            >
+              Create Proposal
+            </Button>
+            {!isActiveMember && (
+              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap z-10">
+                Full membership required to create proposals
+              </span>
+            )}
+          </div>
         )}
       </div>
 
