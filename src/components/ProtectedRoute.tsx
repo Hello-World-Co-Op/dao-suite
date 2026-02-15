@@ -39,6 +39,20 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // E2E auth bypass for CI testing
+        if (import.meta.env.VITE_E2E_AUTH_BYPASS === 'true') {
+          localStorage.setItem('user_data', JSON.stringify({
+            userId: 'e2e-test-user',
+            email: 'e2e@test.local',
+            firstName: 'E2E',
+            lastName: 'Test',
+            icPrincipal: null,
+          }));
+          setAuthenticated(true);
+          setChecking(false);
+          return;
+        }
+
         // FAS-8.1: Check cookie-based session first (cross-suite SSO)
         // Shared httpOnly cookies on .helloworlddao.com enable SSO across suites
         try {

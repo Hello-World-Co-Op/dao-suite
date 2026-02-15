@@ -2,15 +2,15 @@ import { test, expect } from '@playwright/test';
 
 test('homepage loads successfully', async ({ page }) => {
   await page.goto('/');
-  await expect(page).toHaveTitle(/Suite Template/);
+  await expect(page).toHaveTitle(/Hello World DAO/);
 });
 
-test('homepage displays welcome card', async ({ page }) => {
+test('dashboard displays welcome message', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByText('Welcome to Suite Template')).toBeVisible();
+  await expect(page.getByText('Your DAO Dashboard')).toBeVisible();
 });
 
-test('homepage displays Get Started button', async ({ page }) => {
+test('dashboard displays navigation links', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('button', { name: /Get Started/i })).toBeVisible();
+  await expect(page.getByText('Settings')).toBeVisible();
 });

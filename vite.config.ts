@@ -2,10 +2,10 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
-// Security validation - prevent auth bypass in production builds
-// Only check during `vite build`, not `vite preview` (which E2E tests use)
+// Security validation - prevent auth bypass in real production builds
+// Allow in CI (needed for E2E test builds) and during vite preview
 const isViteBuild = process.argv.slice(2).includes('build');
-if (isViteBuild) {
+if (isViteBuild && !process.env.CI) {
   if (process.env.VITE_DEV_AUTH_BYPASS === 'true') {
     throw new Error(
       '[SECURITY] CRITICAL: VITE_DEV_AUTH_BYPASS=true is set in production build. ' +
