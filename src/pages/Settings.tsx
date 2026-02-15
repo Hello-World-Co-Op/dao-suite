@@ -571,13 +571,15 @@ export default function Settings() {
                   </Alert>
                 )}
 
-                <Alert className="bg-blue-50 border-blue-200">
-                  <AlertTriangle className="h-4 w-4 text-blue-600" />
-                  <AlertDescription className="text-blue-800">
-                    Self-custody verification is required for full voting rights. Verification
-                    expires after 90 days.
-                  </AlertDescription>
-                </Alert>
+                {selfCustodyStatus !== 'verified' && (
+                  <Alert className="bg-blue-50 border-blue-200">
+                    <AlertTriangle className="h-4 w-4 text-blue-600" />
+                    <AlertDescription className="text-blue-800">
+                      Self-custody verification is required for full voting rights. Verification
+                      expires after 90 days.
+                    </AlertDescription>
+                  </Alert>
+                )}
 
                 <div className="p-4 bg-gray-50 rounded-lg">
                   <div className="flex items-center justify-between">
