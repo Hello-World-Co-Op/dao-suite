@@ -10,7 +10,7 @@ test('dashboard displays welcome message', async ({ page }) => {
   await expect(page.getByText('Your DAO Dashboard')).toBeVisible();
 });
 
-test('dashboard displays navigation links', async ({ page }) => {
+test('dashboard displays account settings card', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByText('Settings')).toBeVisible();
+  await expect(page.getByText('Account Settings')).toBeVisible();
 });
