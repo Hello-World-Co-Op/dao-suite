@@ -8,17 +8,22 @@ import { SuiteSwitcher } from '@hello-world-co-op/ui';
 import { NotificationBell } from '@/components/NotificationBell';
 import { LogOut } from 'lucide-react';
 import { clearTokenBalance, clearTreasury, clearBurnPool, clearEscrow } from '@/stores';
+import { logout as cookieLogout } from '@/services/authCookieClient';
 
 export function PageHeader() {
   const navigate = useNavigate();
 
-  function handleLogout() {
+  async function handleLogout() {
+    // Clear session cookies via oracle-bridge
+    await cookieLogout();
     localStorage.removeItem('user_data');
     clearTokenBalance();
     clearTreasury();
     clearBurnPool();
     clearEscrow();
-    navigate('/login');
+    // Redirect to foundery-os login (dao-suite has no login page)
+    const founderyOsUrl = import.meta.env.VITE_FOUNDERY_OS_URL || 'https://staging-foundery.helloworlddao.com';
+    window.location.href = `${founderyOsUrl}/login`;
   }
 
   return (
