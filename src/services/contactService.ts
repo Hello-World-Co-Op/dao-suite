@@ -178,28 +178,7 @@ async function mockFetchContacts(userPrincipal: string): Promise<FetchContactsRe
   // Simulate network delay
   await sleep(200 + Math.random() * 100);
 
-  // Generate some mock received requests for demo
-  if (mockReceivedRequests.length === 0) {
-    mockReceivedRequests = [
-      {
-        id: 'mock-req-1',
-        from: 'mock-principal-5-abc123',
-        to: userPrincipal,
-        message:
-          'Hi! I saw your profile in the directory and would love to connect about governance initiatives.',
-        status: 'pending',
-        createdAt: BigInt((Date.now() - 2 * 24 * 60 * 60 * 1000) * 1_000_000), // 2 days ago
-      },
-      {
-        id: 'mock-req-2',
-        from: 'mock-principal-12-xyz789',
-        to: userPrincipal,
-        message: 'Fellow Builder here! Would be great to discuss our approaches to DAO tooling.',
-        status: 'pending',
-        createdAt: BigInt((Date.now() - 5 * 24 * 60 * 60 * 1000) * 1_000_000), // 5 days ago
-      },
-    ];
-  }
+  // No mock data — return empty until canister endpoints exist
 
   return {
     success: true,

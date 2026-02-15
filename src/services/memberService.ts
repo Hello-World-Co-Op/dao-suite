@@ -32,8 +32,6 @@ import {
   MEMBERS_PER_PAGE,
   type MemberProfile,
   type MemberDirectoryState,
-  type Visibility,
-  type Archetype,
 } from '@/stores';
 
 // ============================================================================
@@ -123,97 +121,11 @@ function sleep(ms: number): Promise<void> {
 // Mock Implementation
 // ============================================================================
 
-/** Mock archetypes for random assignment */
-const ARCHETYPES: Archetype[] = ['Builder', 'Guardian', 'Visionary', 'Connector', 'Steward'];
-
-/** Mock display names */
-const MOCK_NAMES = [
-  'Alice Chen',
-  'Bob Martinez',
-  'Carol Williams',
-  'David Kim',
-  'Emma Thompson',
-  'Frank Miller',
-  'Grace Lee',
-  'Henry Johnson',
-  'Ivy Davis',
-  'Jack Wilson',
-  'Kate Brown',
-  'Leo Garcia',
-  'Maya Patel',
-  'Nick Robinson',
-  'Olivia Turner',
-  'Paul Anderson',
-  'Quinn Harris',
-  'Rachel White',
-  'Sam Clark',
-  'Tina Lewis',
-  'Uma Singh',
-  'Victor Hall',
-  'Wendy Young',
-  'Xavier King',
-  'Yuki Tanaka',
-  'Zara Ahmed',
-  'Alex Murphy',
-  'Beth Cooper',
-  'Chris Evans',
-  'Dana Foster',
-];
-
-/** Mock bios */
-const MOCK_BIOS = [
-  'Passionate about decentralized governance and community building.',
-  'Web3 developer focused on creating accessible DAO tools.',
-  'Advocate for transparent and fair cooperative systems.',
-  'Building the future of democratic organizations.',
-  'Helping communities thrive through blockchain technology.',
-  'Committed to making governance accessible to everyone.',
-  'Exploring new ways to empower community voices.',
-  'Supporting sustainable cooperative economics.',
-];
-
 /**
- * Generate mock member profiles
- */
-function generateMockMembers(count: number): MemberProfile[] {
-  const now = Date.now();
-  const members: MemberProfile[] = [];
-
-  for (let i = 0; i < count; i++) {
-    const joinDate = now - Math.random() * 365 * 24 * 60 * 60 * 1000; // Random date within last year
-    const hasArchetype = Math.random() > 0.3; // 70% have archetype
-    const hasAvatar = Math.random() > 0.4; // 60% have avatar
-    const hasBio = Math.random() > 0.5; // 50% have bio
-
-    // Only include members with public or members-only visibility
-    const visibility: Visibility = Math.random() > 0.3 ? 'public' : 'members-only';
-
-    members.push({
-      principal: `mock-principal-${i + 1}-${Math.random().toString(36).substring(7)}`,
-      displayName: MOCK_NAMES[i % MOCK_NAMES.length],
-      avatar: hasAvatar ? `https://api.dicebear.com/7.x/personas/svg?seed=${i}` : undefined,
-      memberSince: BigInt(joinDate * 1_000_000), // Convert to nanoseconds
-      archetype: hasArchetype ? ARCHETYPES[i % ARCHETYPES.length] : undefined,
-      visibility,
-      isActive: true,
-      bio: hasBio ? MOCK_BIOS[i % MOCK_BIOS.length] : undefined,
-    });
-  }
-
-  return members;
-}
-
-/** Cache of mock members for consistent data across calls */
-let mockMembersCache: MemberProfile[] | null = null;
-
-/**
- * Get mock members with caching
+ * Get mock members — empty until canister integration
  */
 function getMockMembers(): MemberProfile[] {
-  if (!mockMembersCache) {
-    mockMembersCache = generateMockMembers(47); // 47 mock members for pagination demo
-  }
-  return mockMembersCache;
+  return [];
 }
 
 /**

@@ -136,15 +136,14 @@ async function mockGetTreasuryBalance(): Promise<TreasuryBalance> {
   // Simulate network delay
   await sleep(600);
 
-  // Return mock treasury balance
-  // Total: 1,234,567.89 DOM operational + 500,000 pending + 250,000 escrow = ~2M DOM
+  // Return empty treasury balance — zero values until canister integration
   return {
-    icpBalance: BigInt(50000000000), // 500 ICP
-    domBalance: BigInt(123456789000000), // 1,234,567.89 DOM operational
-    pendingPayoutsIcp: BigInt(10000000000), // 100 ICP pending
-    pendingPayoutsDom: BigInt(50000000000000), // 500,000 DOM pending
-    activeEscrowsIcp: BigInt(5000000000), // 50 ICP escrow
-    activeEscrowsDom: BigInt(25000000000000), // 250,000 DOM escrow
+    icpBalance: BigInt(0),
+    domBalance: BigInt(0),
+    pendingPayoutsIcp: BigInt(0),
+    pendingPayoutsDom: BigInt(0),
+    activeEscrowsIcp: BigInt(0),
+    activeEscrowsDom: BigInt(0),
   };
 }
 
@@ -157,63 +156,8 @@ async function mockGetTransactions(limit: number): Promise<Transaction[]> {
   // Simulate network delay
   await sleep(400);
 
-  const now = BigInt(Date.now() * 1_000_000); // Convert to nanoseconds
-  const hour = BigInt(3600 * 1_000_000_000); // 1 hour in nanoseconds
-  const day = BigInt(24) * hour;
-
-  // Return mock transactions
-  const mockTransactions: Transaction[] = [
-    {
-      id: 'tx-001',
-      type: 'deposit',
-      amount: BigInt(10000000000000), // 100,000 DOM
-      timestamp: now - hour * BigInt(2),
-      description: 'Membership dues deposit',
-      tokenType: 'DOM',
-    },
-    {
-      id: 'tx-002',
-      type: 'payout',
-      amount: BigInt(5000000000000), // 50,000 DOM
-      timestamp: now - hour * BigInt(5),
-      description: 'Community grant payout',
-      tokenType: 'DOM',
-    },
-    {
-      id: 'tx-003',
-      type: 'burn',
-      amount: BigInt(2500000000000), // 25,000 DOM
-      timestamp: now - day,
-      description: 'Ecological donation burn',
-      tokenType: 'DOM',
-    },
-    {
-      id: 'tx-004',
-      type: 'escrow_release',
-      amount: BigInt(1500000000), // 15 ICP
-      timestamp: now - day * BigInt(2),
-      description: 'Project milestone release',
-      tokenType: 'ICP',
-    },
-    {
-      id: 'tx-005',
-      type: 'deposit',
-      amount: BigInt(2000000000), // 20 ICP
-      timestamp: now - day * BigInt(3),
-      description: 'ICP contribution',
-      tokenType: 'ICP',
-    },
-    {
-      id: 'tx-006',
-      type: 'transfer',
-      amount: BigInt(1000000000000), // 10,000 DOM
-      timestamp: now - day * BigInt(5),
-      description: 'Internal transfer to escrow',
-      tokenType: 'DOM',
-    },
-  ];
-
-  return mockTransactions.slice(0, limit);
+  // Return empty transactions — no mock data until canister integration
+  return [];
 }
 
 // ============================================================================

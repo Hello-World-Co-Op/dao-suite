@@ -146,7 +146,7 @@ function getAmountBucket(amountE8s: bigint): string {
 // ============================================================================
 
 /** Mock total burned amount (increases with each mock burn) */
-let mockTotalBurned = BigInt(250000000000000); // 2,500,000 DOM starting value
+let mockTotalBurned = BigInt(0); // Start at 0 until canister integration
 
 /** Mock transaction counter */
 let mockTxCounter = 1000;
