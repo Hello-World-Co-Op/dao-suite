@@ -2,7 +2,6 @@
  * PageHeader Component - Shared header with suite switcher and logout
  * Story BL-010.2 - Cross-suite navigation for dao-suite
  */
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { SuiteSwitcher } from '@hello-world-co-op/ui';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -11,7 +10,6 @@ import { clearTokenBalance, clearTreasury, clearBurnPool, clearEscrow } from '@/
 import { logout as cookieLogout } from '@/services/authCookieClient';
 
 export function PageHeader() {
-  const navigate = useNavigate();
 
   async function handleLogout() {
     // Clear session cookies via oracle-bridge

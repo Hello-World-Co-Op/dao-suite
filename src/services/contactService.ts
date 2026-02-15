@@ -111,7 +111,7 @@ function generateRequestId(): string {
 
 /** Mock contact requests storage (in-memory for development) */
 const mockSentRequests: ContactRequest[] = [];
-let mockReceivedRequests: ContactRequest[] = [];
+const mockReceivedRequests: ContactRequest[] = [];
 
 /**
  * Mock: Send contact request
