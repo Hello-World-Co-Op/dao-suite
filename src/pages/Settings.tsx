@@ -5,13 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  useIdentityGateway,
-  type DeviceRecord as _DeviceRecord,
-} from '../hooks/useIdentityGateway';
+import { type DeviceRecord as _DeviceRecord } from '../hooks/useIdentityGateway';
 import { useAuthService, type TrustedDevice as _TrustedDevice } from '../hooks/useAuthService';
 import { useUserService } from '../hooks/useUserService';
 import { withAuthErrorHandler, isAuthError, handleSessionExpired } from '../utils/authHelpers';
+import { csrfFetch } from '../utils/csrf';
 import { createLogger } from '../utils/logger';
 import {
   Settings as SettingsIcon,
@@ -30,6 +28,16 @@ import { NotificationSettings } from '@/features/settings/components/Notificatio
 import { VisibilitySettings } from '@/components/VisibilitySettings';
 
 const log = createLogger('Settings');
+
+function getOracleBridgeUrl(): string {
+  if (import.meta.env.VITE_ORACLE_BRIDGE_URL) {
+    return import.meta.env.VITE_ORACLE_BRIDGE_URL;
+  }
+  if (import.meta.env.PROD) {
+    return '';
+  }
+  return 'http://localhost:3000';
+}
 
 interface UserData {
   userId: string;
@@ -60,7 +68,6 @@ export default function Settings() {
     const validTabs = ['identity', 'custody', 'devices', 'notifications', 'privacy'];
     return tabParam && validTabs.includes(tabParam) ? tabParam : 'identity';
   }, [searchParams]);
-  const identityGateway = useIdentityGateway();
   const authService = useAuthService();
   const userService = useUserService();
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -186,12 +193,6 @@ export default function Settings() {
       return;
     }
 
-    if (!userData.accessToken) {
-      setIiMessage({ type: 'error', text: 'Access token not found. Please log in again.' });
-      console.error('Missing accessToken in userData:', userData);
-      return;
-    }
-
     setIiLinking(true);
     setIiMessage(null);
 
@@ -210,27 +211,27 @@ export default function Settings() {
               const principal = identity.getPrincipal().toText();
 
               // Create delegation data in format: "challenge:principal:delegation_data"
-              // For testing/simplified implementation as per identity-gateway lib.rs:241
               const timestamp = Date.now();
               const challenge = `ch-${timestamp}`;
               const delegationData = `${challenge}:${principal}:delegationData`;
 
               log.debug('Linking II with principal:', principal);
-              log.debug('Using accessToken:', userData.accessToken ? 'present' : 'MISSING');
               log.debug('Delegation format:', delegationData);
 
-              // Link to account
-              const result = await identityGateway.linkInternetIdentity(
-                userData.accessToken,
-                delegationData
-              );
+              // Link via oracle-bridge proxy (access_token read from cookie)
+              const baseUrl = getOracleBridgeUrl();
+              const response = await csrfFetch(`${baseUrl}/api/identity/link-ii`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ delegation: delegationData }),
+              });
+              const result = await response.json();
 
               if (result.success) {
                 setIiLinked(true);
                 localStorage.setItem('ii_linked', 'true');
                 setIiMessage({ type: 'success', text: 'Internet Identity linked successfully!' });
               } else {
-                // Check if the error is a token expiration - redirect to login
                 if (isAuthError(result.message)) {
                   handleSessionExpired(
                     'Your session has expired. Please sign in again.',
@@ -245,7 +246,6 @@ export default function Settings() {
               }
             }, '/settings');
           } catch (linkError) {
-            // Auth errors are handled by withAuthErrorHandler and will redirect
             if (!isAuthError(linkError)) {
               console.error('Error during II linking:', linkError);
               setIiMessage({ type: 'error', text: `Failed to link: ${linkError}` });
@@ -275,7 +275,12 @@ export default function Settings() {
 
     try {
       await withAuthErrorHandler(async () => {
-        const result = await identityGateway.unlinkInternetIdentity(userData.accessToken);
+        const baseUrl = getOracleBridgeUrl();
+        const response = await csrfFetch(`${baseUrl}/api/identity/unlink-ii`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const result = await response.json();
 
         if (result.success) {
           setIiLinked(false);
@@ -289,7 +294,6 @@ export default function Settings() {
         }
       }, '/settings');
     } catch (error) {
-      // Auth errors are handled by withAuthErrorHandler
       if (!isAuthError(error)) {
         console.error('Unlink II error:', error);
         setIiMessage({ type: 'error', text: `Error: ${error}` });
@@ -318,34 +322,39 @@ export default function Settings() {
             const identity = authClient.getIdentity();
             const principal = identity.getPrincipal().toText();
 
-            // NOW get the challenge from the canister (after popup is open)
-            const beginResult = await identityGateway.beginSelfCustodyVerification(
-              userData.accessToken
-            );
+            // Get the challenge via oracle-bridge proxy (access_token read from cookie)
+            const baseUrl = getOracleBridgeUrl();
+            const beginResponse = await csrfFetch(`${baseUrl}/api/identity/begin-self-custody`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+            });
+            const beginResult = await beginResponse.json();
 
-            if ('Err' in beginResult) {
-              if (isAuthError(beginResult.Err)) {
+            if (!beginResult.success) {
+              if (isAuthError(beginResult.message)) {
                 handleSessionExpired(
                   'Your session has expired. Please sign in again.',
                   '/settings'
                 );
                 return;
               }
-              setSelfCustodyMessage({ type: 'error', text: beginResult.Err });
+              setSelfCustodyMessage({ type: 'error', text: beginResult.message });
               setSelfCustodyVerifying(false);
               return;
             }
 
-            const challenge = beginResult.Ok;
+            const challenge = beginResult.challenge;
 
             // Create signature in delegation format (backend expects "challenge:principal:delegation_data")
             const signature = `${challenge}:${principal}:delegationData`;
 
-            // Complete verification
-            const completeResult = await identityGateway.completeSelfCustodyVerification(
-              userData.accessToken,
-              signature
-            );
+            // Complete verification via oracle-bridge proxy
+            const completeResponse = await csrfFetch(`${baseUrl}/api/identity/complete-self-custody`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ signature }),
+            });
+            const completeResult = await completeResponse.json();
 
             if (completeResult.success) {
               setSelfCustodyStatus('verified');
@@ -354,7 +363,6 @@ export default function Settings() {
                 text: 'Self-custody verified! Your voting rights are now active.',
               });
             } else {
-              // Check for auth errors
               if (isAuthError(completeResult.message)) {
                 handleSessionExpired(
                   'Your session has expired. Please sign in again.',
