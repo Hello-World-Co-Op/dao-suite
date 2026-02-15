@@ -13,6 +13,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Home } from 'lucide-react';
 import { BurnDonation } from '@/components/BurnDonation';
 import { TokenBalance } from '@/components/TokenBalance';
+import { useMembership } from '@/hooks/useMembership';
 // Intentionally importing state utilities for potential future cleanup operations
 // import { clearBurnPool, clearBurnHistory } from '@/stores';
 
@@ -27,6 +28,7 @@ export default function BurnDonationPage() {
   const navigate = useNavigate();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { icPrincipal } = useMembership();
 
   useEffect(() => {
     // Load user data from localStorage
@@ -50,8 +52,8 @@ export default function BurnDonationPage() {
     }
   }, [navigate]);
 
-  // Derive principal from user ID for token balance fetching
-  const userPrincipal = userData?.userId ?? null;
+  // BL-027.3: Use real IC principal from session (via useMembership hook)
+  const userPrincipal = icPrincipal;
 
   if (loading) {
     return (

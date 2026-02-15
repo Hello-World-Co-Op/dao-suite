@@ -1,8 +1,8 @@
 /**
  * TokenBalance Component Tests
  *
- * Story: 9-2-1-token-balance-display
- * AC: 1, 2, 3, 4
+ * Story: 9-2-1-token-balance-display, BL-027.3
+ * AC: 1, 2, 3, 4 (9-2-1), 1, 2, 3 (BL-027.3)
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
@@ -62,17 +62,69 @@ describe('TokenBalance', () => {
     vi.restoreAllMocks();
   });
 
-  describe('Rendering', () => {
-    it('should not render when principal is null', () => {
-      const { container } = render(
+  describe('Null principal - Link II prompt (BL-027.3 AC2)', () => {
+    it('should render link-II prompt when principal is null', () => {
+      render(
         <TestWrapper>
           <TokenBalance principal={null} />
         </TestWrapper>
       );
 
-      expect(container.firstChild).toBeNull();
+      expect(
+        screen.getByText('Link Internet Identity to view your token balance')
+      ).toBeInTheDocument();
     });
 
+    it('should show link to Settings II tab when principal is null', () => {
+      render(
+        <TestWrapper>
+          <TokenBalance principal={null} />
+        </TestWrapper>
+      );
+
+      const link = screen.getByRole('link', { name: /go to settings/i });
+      expect(link).toHaveAttribute('href', '/settings?tab=identity');
+    });
+
+    it('should show explanation text when principal is null', () => {
+      render(
+        <TestWrapper>
+          <TokenBalance principal={null} />
+        </TestWrapper>
+      );
+
+      expect(
+        screen.getByText(/Linking enables real token balances, governance voting, and NFT minting/)
+      ).toBeInTheDocument();
+    });
+
+    it('should render compact link-II prompt in compact mode', () => {
+      render(
+        <TestWrapper>
+          <TokenBalance principal={null} compact />
+        </TestWrapper>
+      );
+
+      const link = screen.getByRole('link', { name: /link internet identity/i });
+      expect(link).toHaveAttribute('href', '/settings?tab=identity');
+      // Should NOT show the full explanation in compact mode
+      expect(
+        screen.queryByText(/Linking enables real token balances/)
+      ).not.toBeInTheDocument();
+    });
+
+    it('should apply custom className to link-II prompt', () => {
+      const { container } = render(
+        <TestWrapper>
+          <TokenBalance principal={null} className="custom-prompt-class" />
+        </TestWrapper>
+      );
+
+      expect(container.firstChild).toHaveClass('custom-prompt-class');
+    });
+  });
+
+  describe('Rendering', () => {
     it('should render when principal is provided', () => {
       // Set up balance first
       setTokenBalance(BigInt(100000000), 'test-principal');

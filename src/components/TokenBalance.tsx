@@ -11,7 +11,7 @@
 import React, { useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useStore } from '@nanostores/react';
-import { RefreshCw, Flame, Wallet, AlertCircle } from 'lucide-react';
+import { RefreshCw, Flame, Wallet, AlertCircle, LinkIcon } from 'lucide-react';
 import { $formattedBalance, $tokenBalance, $tokenMetadata } from '@/stores';
 import { useTokenBalance } from '../services/tokenService';
 import { trackEvent } from '../utils/analytics';
@@ -148,11 +148,81 @@ function ZeroBalance({ symbol, isRefreshing, onRefresh }: ZeroBalanceProps): Rea
 }
 
 // ============================================================================
+// Link Identity Prompt (BL-027.3 AC2)
+// ============================================================================
+
+interface LinkIdentityPromptProps {
+  compact?: boolean;
+  className?: string;
+}
+
+function LinkIdentityPrompt({ compact = false, className = '' }: LinkIdentityPromptProps): React.ReactElement {
+  const containerClasses = compact
+    ? `flex items-center gap-4 ${className}`
+    : `bg-white rounded-lg border border-gray-200 p-4 ${className}`;
+
+  if (compact) {
+    return (
+      <div className={containerClasses}>
+        <Link
+          to="/settings?tab=identity"
+          className="
+            inline-flex items-center gap-1.5
+            text-sm text-teal-600 hover:text-teal-800
+            font-medium
+            focus:outline-none focus:underline
+            transition-colors duration-150
+          "
+        >
+          <LinkIcon className="h-4 w-4" aria-hidden="true" />
+          Link Internet Identity
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className={containerClasses}>
+      <div className="flex items-center gap-2 mb-3">
+        <Wallet className="h-5 w-5 text-teal-600" aria-hidden="true" />
+        <h3 className="text-sm font-medium text-gray-600">Token Balance</h3>
+      </div>
+      <div className="flex items-center gap-3 text-gray-500">
+        <LinkIcon className="h-5 w-5 text-teal-500 flex-shrink-0" aria-hidden="true" />
+        <div>
+          <p className="text-sm font-medium text-gray-700">
+            Link Internet Identity to view your token balance
+          </p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Linking enables real token balances, governance voting, and NFT minting.
+          </p>
+        </div>
+      </div>
+      <div className="mt-3 pt-3 border-t border-gray-100">
+        <Link
+          to="/settings?tab=identity"
+          className="
+            inline-flex items-center gap-1.5
+            text-sm text-teal-600 hover:text-teal-800
+            font-medium
+            focus:outline-none focus:underline
+            transition-colors duration-150
+          "
+        >
+          <LinkIcon className="h-4 w-4" aria-hidden="true" />
+          Go to Settings
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
 export interface TokenBalanceProps {
-  /** Principal to fetch balance for (required when authenticated) */
+  /** Principal to fetch balance for (null when user hasn't linked II) */
   principal: string | null;
   /** Optional className for container */
   className?: string;
@@ -185,9 +255,9 @@ export function TokenBalance({
     });
   }, [balanceState.balance]);
 
-  // Don't render if no principal
+  // BL-027.3 AC2: Show link-II prompt when principal is null
   if (!principal) {
-    return null;
+    return <LinkIdentityPrompt compact={compact} className={className} />;
   }
 
   // Determine if balance is zero

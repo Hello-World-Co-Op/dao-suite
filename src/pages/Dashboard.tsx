@@ -35,7 +35,7 @@ export default function Dashboard() {
 
   // Initialize notification polling for authenticated members
   const isAuthenticated = !!userData;
-  const { isActiveMember, isRegistered } = useMembership();
+  const { isActiveMember, isRegistered, icPrincipal } = useMembership();
   useNotificationPoller(isAuthenticated, isActiveMember);
 
   useEffect(() => {
@@ -67,10 +67,9 @@ export default function Dashboard() {
     }
   }, [navigate]);
 
-  // Derive principal from user ID for token balance fetching
-  // In production, this would be the user's IC principal from Internet Identity
-  // For now, we use the userId as a placeholder
-  const userPrincipal = userData?.userId ?? null;
+  // BL-027.3: Use real IC principal from session (via useMembership hook)
+  // icPrincipal is null when user hasn't linked Internet Identity
+  const userPrincipal = icPrincipal;
 
   if (loading) {
     return (

@@ -1,10 +1,11 @@
 /**
  * Dashboard Tests
  *
- * Tests for membership upgrade prompt display.
+ * Tests for membership upgrade prompt display and icPrincipal usage.
  *
  * Story: BL-011.5 — Frontend Membership Gating
- * AC: 2, 3, 8
+ * Story: BL-027.3 — Dashboard Token Balance Uses IC Principal
+ * AC: 2, 3, 8 (BL-011.5), 1 (BL-027.3)
  */
 
 import React from 'react';
@@ -29,9 +30,13 @@ vi.mock('@/services/notificationPoller', () => ({
   })),
 }));
 
-// Mock TokenBalance and TreasuryView to avoid canister calls
+// Mock TokenBalance to capture the principal prop
+const mockTokenBalance = vi.fn();
 vi.mock('@/components/TokenBalance', () => ({
-  TokenBalance: () => <div data-testid="token-balance">TokenBalance</div>,
+  TokenBalance: (props: Record<string, unknown>) => {
+    mockTokenBalance(props);
+    return <div data-testid="token-balance">TokenBalance</div>;
+  },
 }));
 
 vi.mock('@/components/TreasuryView', () => ({
@@ -72,6 +77,7 @@ describe('Dashboard', () => {
         isActiveMember: false,
         isRegistered: true,
         isLoading: false,
+        icPrincipal: null,
       });
 
       renderDashboard();
@@ -89,6 +95,7 @@ describe('Dashboard', () => {
         isActiveMember: true,
         isRegistered: false,
         isLoading: false,
+        icPrincipal: 'gbzb4-test-principal',
       });
 
       renderDashboard();
@@ -102,11 +109,50 @@ describe('Dashboard', () => {
         isActiveMember: false,
         isRegistered: false,
         isLoading: false,
+        icPrincipal: null,
       });
 
       renderDashboard();
 
       expect(screen.queryByText('Upgrade to Full Membership')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('BL-027.3 AC1: Dashboard passes icPrincipal to TokenBalance', () => {
+    it('should pass icPrincipal from useMembership to TokenBalance', () => {
+      mockUseMembership.mockReturnValue({
+        membershipStatus: 'Active',
+        isActiveMember: true,
+        isRegistered: false,
+        isLoading: false,
+        icPrincipal: 'gbzb4-test-principal',
+      });
+
+      renderDashboard();
+
+      expect(mockTokenBalance).toHaveBeenCalledWith(
+        expect.objectContaining({
+          principal: 'gbzb4-test-principal',
+        })
+      );
+    });
+
+    it('should pass null principal to TokenBalance when user has no IC principal', () => {
+      mockUseMembership.mockReturnValue({
+        membershipStatus: 'Active',
+        isActiveMember: true,
+        isRegistered: false,
+        isLoading: false,
+        icPrincipal: null,
+      });
+
+      renderDashboard();
+
+      expect(mockTokenBalance).toHaveBeenCalledWith(
+        expect.objectContaining({
+          principal: null,
+        })
+      );
     });
   });
 });

@@ -12,6 +12,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Home, Wallet } from 'lucide-react';
 import { EscrowView } from '@/components/EscrowView';
+import { useMembership } from '@/hooks/useMembership';
 // Intentionally importing state utilities for potential future cleanup operations
 // import { clearEscrow } from '@/stores';
 
@@ -26,6 +27,7 @@ export default function EscrowViewPage() {
   const navigate = useNavigate();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
+  const { icPrincipal } = useMembership();
 
   useEffect(() => {
     // Load user data from localStorage
@@ -49,8 +51,8 @@ export default function EscrowViewPage() {
     }
   }, [navigate]);
 
-  // Derive principal from user ID for escrow filtering
-  const userPrincipal = userData?.userId ?? undefined;
+  // BL-027.3: Use real IC principal from session (via useMembership hook)
+  const userPrincipal = icPrincipal ?? undefined;
 
   if (loading) {
     return (
