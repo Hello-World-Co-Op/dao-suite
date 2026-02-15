@@ -16,6 +16,11 @@ vi.mock('@/components/NotificationBell', () => ({
   NotificationBell: () => <div data-testid="notification-bell">Notifications</div>,
 }));
 
+// Mock authCookieClient
+vi.mock('@/services/authCookieClient', () => ({
+  logout: vi.fn().mockResolvedValue(undefined),
+}));
+
 // Mock stores
 vi.mock('@/stores', () => ({
   clearTokenBalance: vi.fn(),
