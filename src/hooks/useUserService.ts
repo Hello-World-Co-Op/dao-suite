@@ -237,14 +237,8 @@ const idlFactory = (({ IDL }: { IDL: typeof import('@dfinity/candid').IDL }) => 
 // Canister ID - this should be set via environment variable in production
 const CANISTER_ID = import.meta.env.VITE_USER_SERVICE_CANISTER_ID || 'rrkah-fqaaa-aaaaa-aaaaq-cai';
 
-// Host configuration based on environment
-const getHost = () => {
-  const network = import.meta.env.VITE_NETWORK || 'local';
-  if (network === 'ic') {
-    return 'https://ic0.app'; // IC mainnet
-  }
-  return 'http://127.0.0.1:4943'; // Local PocketIC server
-};
+// Host configuration — uses VITE_IC_HOST (same pattern as tokenService)
+const IC_HOST = import.meta.env.VITE_IC_HOST || 'https://ic0.app';
 
 /**
  * Custom hook for interacting with the user-service canister
@@ -252,15 +246,10 @@ const getHost = () => {
  */
 export function useUserService() {
   const actor = useMemo(() => {
-    // Use HttpAgent.createSync instead of deprecated constructor
-    const agent = HttpAgent.createSync({
-      host: getHost(),
-    });
+    const agent = HttpAgent.createSync({ host: IC_HOST });
 
-    // Fetch root key for certificate validation when using local network
-    // WARNING: This is insecure and should NEVER be done in production
-    const network = import.meta.env.VITE_NETWORK || 'local';
-    if (network === 'local') {
+    // Fetch root key for local dev only (insecure — never in production)
+    if (IC_HOST.includes('127.0.0.1') || IC_HOST.includes('localhost')) {
       agent.fetchRootKey().catch((err) => {
         console.warn('Unable to fetch root key. Check your local replica is running.');
         console.error(err);
