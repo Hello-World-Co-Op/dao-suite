@@ -6,6 +6,7 @@ interface ImportMetaEnv {
   readonly VITE_MEMBERSHIP_CANISTER_ID: string;
   readonly VITE_TREASURY_CANISTER_ID: string;
   readonly VITE_TOKEN_CANISTER_ID: string;
+  readonly VITE_DOM_TOKEN_CANISTER_ID: string;
   readonly VITE_IDENTITY_GATEWAY_CANISTER_ID: string;
   readonly VITE_AUTH_SERVICE_CANISTER_ID: string;
   readonly VITE_USER_SERVICE_CANISTER_ID: string;

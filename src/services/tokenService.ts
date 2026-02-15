@@ -10,6 +10,9 @@
 
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { useStore } from '@nanostores/react';
+import { HttpAgent, Actor } from '@dfinity/agent';
+import { Principal } from '@dfinity/principal';
+import { IDL } from '@dfinity/candid';
 import {
   $tokenBalance,
   $tokenBalanceLoading,
@@ -64,12 +67,27 @@ export interface TokenServiceState {
 // Helpers
 // ============================================================================
 
+/** IC host for agent connections */
+const IC_HOST = import.meta.env.VITE_IC_HOST || 'https://ic0.app';
+
 /**
  * Check if we're in mock/development mode
  */
 function isMockMode(): boolean {
   return !DOM_TOKEN_CANISTER_ID || import.meta.env.DEV;
 }
+
+/**
+ * Minimal IDL factory for ICRC-1 balance_of query.
+ * Only defines the single method we need — avoids importing a full .did binding.
+ */
+const icrc1BalanceOfIdl = IDL.Service({
+  icrc1_balance_of: IDL.Func(
+    [IDL.Record({ owner: IDL.Principal, subaccount: IDL.Opt(IDL.Vec(IDL.Nat8)) })],
+    [IDL.Nat],
+    ['query'],
+  ),
+});
 
 /**
  * Create structured log entry
@@ -151,7 +169,7 @@ async function mockGetBalance(principal: string): Promise<bigint> {
 /**
  * Fetch balance from dom-token canister
  *
- * @param principal - The principal to fetch balance for
+ * @param principal - The principal text to fetch balance for
  * @returns The balance in e8s
  */
 async function fetchBalanceFromCanister(principal: string): Promise<bigint> {
@@ -159,17 +177,25 @@ async function fetchBalanceFromCanister(principal: string): Promise<bigint> {
     return mockGetBalance(principal);
   }
 
-  // TODO: Replace with actual IC Agent call when @dfinity/agent is configured
-  // const agent = new HttpAgent({ host: IC_HOST });
-  // const actor = Actor.createActor(domTokenIdlFactory, {
-  //   agent,
-  //   canisterId: DOM_TOKEN_CANISTER_ID,
-  // });
-  // const account = { owner: Principal.fromText(principal), subaccount: [] };
-  // return await actor.icrc1_balance_of(account);
+  // Validate that the string is a valid IC principal before making the call.
+  // Dashboard may pass a user-service ID (e.g. "user-42") which is not a
+  // valid principal — return 0 rather than crashing.
+  let owner: Principal;
+  try {
+    owner = Principal.fromText(principal);
+  } catch {
+    log('warn', 'Invalid principal format, returning zero balance', { principal });
+    return BigInt(0);
+  }
 
-  // For now, use mock
-  return mockGetBalance(principal);
+  // Anonymous agent is safe — icrc1_balance_of is a public query method
+  const agent = HttpAgent.createSync({ host: IC_HOST });
+  const actor = Actor.createActor(() => icrc1BalanceOfIdl, {
+    agent,
+    canisterId: DOM_TOKEN_CANISTER_ID,
+  });
+  const balance = (await actor.icrc1_balance_of({ owner, subaccount: [] })) as bigint;
+  return balance;
 }
 
 // ============================================================================
