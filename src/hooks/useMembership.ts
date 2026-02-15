@@ -19,6 +19,7 @@ export interface UseMembershipResult {
   isActiveMember: boolean;
   isRegistered: boolean;
   isLoading: boolean;
+  icPrincipal: string | null;
 }
 
 // Module-level cache to avoid redundant session calls across
@@ -118,11 +119,18 @@ export function useMembership(): UseMembershipResult {
     };
   }, [currentUserId]);
 
+  // BL-027.2: Read icPrincipal from localStorage user_data
+  const userData = typeof window !== 'undefined'
+    ? JSON.parse(localStorage.getItem('user_data') || '{}')
+    : {};
+  const icPrincipal: string | null = userData.icPrincipal || null;
+
   return {
     membershipStatus,
     isActiveMember: membershipStatus === 'Active',
     isRegistered: membershipStatus === 'Registered',
     isLoading,
+    icPrincipal,
   };
 }
 

@@ -46,12 +46,17 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
           if (session.authenticated) {
             // FAS-8.1: Populate localStorage for legacy components (Dashboard, etc.)
             // that expect user_data to exist. Cookie SSO doesn't set localStorage.
-            if (!localStorage.getItem('user_data')) {
+            // BL-027.2: Always update user_data to include icPrincipal from session
+            const existingData = localStorage.getItem('user_data');
+            const parsed = existingData ? JSON.parse(existingData) : null;
+            const needsUpdate = !parsed || parsed.icPrincipal !== (session.icPrincipal ?? null);
+            if (needsUpdate) {
               localStorage.setItem('user_data', JSON.stringify({
-                userId: session.userId || 'sso-user',
-                email: '',
-                firstName: 'Member',
-                lastName: '',
+                userId: parsed?.userId || session.userId || 'sso-user',
+                email: parsed?.email || '',
+                firstName: parsed?.firstName || 'Member',
+                lastName: parsed?.lastName || '',
+                icPrincipal: session.icPrincipal ?? null,
               }));
             }
             setAuthenticated(true);

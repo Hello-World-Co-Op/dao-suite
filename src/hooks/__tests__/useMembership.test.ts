@@ -26,6 +26,7 @@ describe('useMembership', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetMembershipCache();
+    localStorage.clear();
     // Default: no in-memory session state
     mockGetSessionState.mockReturnValue({ authenticated: false });
   });
@@ -168,6 +169,46 @@ describe('useMembership', () => {
       expect(result.current.membershipStatus).toBe(null);
       expect(result.current.isActiveMember).toBe(false);
       expect(result.current.isRegistered).toBe(false);
+    });
+  });
+
+  // =========================================================================
+  // BL-027.2: icPrincipal field
+  // =========================================================================
+
+  describe('icPrincipal from localStorage (BL-027.2)', () => {
+    it('should return icPrincipal when present in localStorage user_data', async () => {
+      localStorage.setItem('user_data', JSON.stringify({ icPrincipal: '2vxsx-fae' }));
+      mockGetSessionState.mockReturnValue({
+        authenticated: true,
+        userId: 'user-p1',
+        membershipStatus: 'Active',
+      });
+
+      const { result } = renderHook(() => useMembership());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.icPrincipal).toBe('2vxsx-fae');
+    });
+
+    it('should return icPrincipal null when user has not linked II', async () => {
+      localStorage.setItem('user_data', JSON.stringify({ userId: 'user-no-ii' }));
+      mockGetSessionState.mockReturnValue({
+        authenticated: true,
+        userId: 'user-no-ii',
+        membershipStatus: 'Registered',
+      });
+
+      const { result } = renderHook(() => useMembership());
+
+      await waitFor(() => {
+        expect(result.current.isLoading).toBe(false);
+      });
+
+      expect(result.current.icPrincipal).toBeNull();
     });
   });
 

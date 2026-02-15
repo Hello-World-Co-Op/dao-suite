@@ -73,6 +73,7 @@ export interface SessionStatus {
   accessExpiresAt?: number;
   refreshExpiresAt?: number;
   membershipStatus?: string | null;
+  icPrincipal?: string | null;
 }
 
 export interface RefreshResult {
@@ -374,6 +375,7 @@ export async function checkSession(): Promise<SessionStatus> {
       accessExpiresAt: data.access_expires_at,
       refreshExpiresAt: data.refresh_expires_at,
       membershipStatus: data.membership_status ?? null,
+      icPrincipal: data.ic_principal ?? null,
     };
 
     updateSessionState(status);
