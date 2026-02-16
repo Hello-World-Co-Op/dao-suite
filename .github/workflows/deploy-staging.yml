@@ -90,6 +90,7 @@ jobs:
           VITE_MEMBERSHIP_CANISTER_ID: ${{ vars.VITE_MEMBERSHIP_CANISTER_ID || 'z2upb-xqaaa-aaaah-qqjta-cai' }}
           VITE_GOVERNANCE_CANISTER_ID: ${{ vars.VITE_GOVERNANCE_CANISTER_ID || 'gqsns-jiaaa-aaaac-a74sa-cai' }}
           VITE_TREASURY_CANISTER_ID: ${{ vars.VITE_TREASURY_CANISTER_ID || 'zri6y-dqaaa-aaaai-atrfa-cai' }}
+          VITE_DOM_TOKEN_CANISTER_ID: ${{ vars.VITE_DOM_TOKEN_CANISTER_ID || 'njo7k-3qaaa-aaaau-aed4a-cai' }}
         run: npm run build
 
       - name: Verify build output
