@@ -75,6 +75,8 @@ export interface SessionStatus {
   refreshExpiresAt?: number;
   membershipStatus?: string | null;
   icPrincipal?: string | null;
+  /** BL-028.3: Display name from user-service, null if not set */
+  displayName?: string | null;
 }
 
 export interface RefreshResult {
@@ -378,6 +380,7 @@ export async function checkSession(): Promise<SessionStatus> {
       refreshExpiresAt: data.refresh_expires_at,
       membershipStatus: data.membership_status ?? null,
       icPrincipal: data.ic_principal ?? null,
+      displayName: data.display_name ?? null,
     };
 
     updateSessionState(status);

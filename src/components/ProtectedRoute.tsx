@@ -68,13 +68,16 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
             const needsUpdate = !parsed
               || parsed.icPrincipal !== (session.icPrincipal ?? null)
               || parsed.firstName === 'Member'
-              || (sessionEmail && parsed?.email !== sessionEmail);
+              || (sessionEmail && parsed?.email !== sessionEmail)
+              || (session.displayName && parsed?.firstName !== session.displayName);
             if (needsUpdate) {
-              // Derive display name from email if no firstName is available
+              // BL-028.3: Use displayName from session as primary name source,
+              // fall back to email prefix, then "Member"
               const emailPrefix = sessionEmail.includes('@') ? sessionEmail.split('@')[0] : '';
-              const firstName = (parsed?.firstName && parsed.firstName !== 'Member')
-                ? parsed.firstName
-                : (emailPrefix || 'Member');
+              const firstName = session.displayName
+                || (parsed?.firstName && parsed.firstName !== 'Member' ? parsed.firstName : null)
+                || emailPrefix
+                || 'Member';
               localStorage.setItem('user_data', JSON.stringify({
                 userId: parsed?.userId || session.userId || 'sso-user',
                 email: sessionEmail,
