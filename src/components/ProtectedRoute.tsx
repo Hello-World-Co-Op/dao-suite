@@ -65,10 +65,16 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
             const parsed = existingData ? JSON.parse(existingData) : null;
             const needsUpdate = !parsed || parsed.icPrincipal !== (session.icPrincipal ?? null);
             if (needsUpdate) {
+              // Derive display name from email if no firstName is available
+              const email = parsed?.email || '';
+              const emailPrefix = email.includes('@') ? email.split('@')[0] : '';
+              const firstName = (parsed?.firstName && parsed.firstName !== 'Member')
+                ? parsed.firstName
+                : (emailPrefix || 'Member');
               localStorage.setItem('user_data', JSON.stringify({
                 userId: parsed?.userId || session.userId || 'sso-user',
-                email: parsed?.email || '',
-                firstName: parsed?.firstName || 'Member',
+                email,
+                firstName,
                 lastName: parsed?.lastName || '',
                 icPrincipal: session.icPrincipal ?? null,
               }));

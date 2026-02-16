@@ -230,6 +230,12 @@ export default function Settings() {
               if (result.success) {
                 setIiLinked(true);
                 localStorage.setItem('ii_linked', 'true');
+                // Update user_data with the linked IC principal so TokenBalance shows it
+                try {
+                  const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
+                  userData.icPrincipal = principal;
+                  localStorage.setItem('user_data', JSON.stringify(userData));
+                } catch { /* ignore parse errors */ }
                 setIiMessage({ type: 'success', text: 'Internet Identity linked successfully!' });
               } else {
                 if (isAuthError(result.message)) {
