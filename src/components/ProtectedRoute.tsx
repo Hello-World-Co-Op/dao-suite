@@ -63,17 +63,21 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
             // BL-027.2: Always update user_data to include icPrincipal from session
             const existingData = localStorage.getItem('user_data');
             const parsed = existingData ? JSON.parse(existingData) : null;
-            const needsUpdate = !parsed || parsed.icPrincipal !== (session.icPrincipal ?? null);
+            // Use email from session (httpOnly cookie) or fall back to stored email
+            const sessionEmail = session.email || parsed?.email || '';
+            const needsUpdate = !parsed
+              || parsed.icPrincipal !== (session.icPrincipal ?? null)
+              || parsed.firstName === 'Member'
+              || (sessionEmail && parsed?.email !== sessionEmail);
             if (needsUpdate) {
               // Derive display name from email if no firstName is available
-              const email = parsed?.email || '';
-              const emailPrefix = email.includes('@') ? email.split('@')[0] : '';
+              const emailPrefix = sessionEmail.includes('@') ? sessionEmail.split('@')[0] : '';
               const firstName = (parsed?.firstName && parsed.firstName !== 'Member')
                 ? parsed.firstName
                 : (emailPrefix || 'Member');
               localStorage.setItem('user_data', JSON.stringify({
                 userId: parsed?.userId || session.userId || 'sso-user',
-                email,
+                email: sessionEmail,
                 firstName,
                 lastName: parsed?.lastName || '',
                 icPrincipal: session.icPrincipal ?? null,

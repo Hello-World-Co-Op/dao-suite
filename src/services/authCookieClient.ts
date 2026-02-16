@@ -70,6 +70,7 @@ export interface LoginResult {
 export interface SessionStatus {
   authenticated: boolean;
   userId?: string;
+  email?: string | null;
   accessExpiresAt?: number;
   refreshExpiresAt?: number;
   membershipStatus?: string | null;
@@ -372,6 +373,7 @@ export async function checkSession(): Promise<SessionStatus> {
     const status: SessionStatus = {
       authenticated: data.authenticated === true,
       userId: data.user_id,
+      email: data.email ?? null,
       accessExpiresAt: data.access_expires_at,
       refreshExpiresAt: data.refresh_expires_at,
       membershipStatus: data.membership_status ?? null,
