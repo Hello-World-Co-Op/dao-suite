@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Principal } from '@dfinity/principal';
+import { useAuth } from '@hello-world-co-op/auth';
 import {
   useTreasuryService,
   type PaymentRecord,
@@ -50,6 +51,7 @@ function formatDate(nanoseconds: bigint): string {
 export default function PaymentHistory() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user: _authUser } = useAuth(); // userId available for BL-031 analytics enhancement
   const treasuryService = useTreasuryService();
 
   const [loading, setLoading] = useState(true);
@@ -84,9 +86,11 @@ export default function PaymentHistory() {
     // Load payment history (auth gating is handled by ProtectedRoute in App.tsx)
     const init = async () => {
       try {
-        // For email/password authentication, we use the anonymous principal
-        // The backend will identify the user by their session
-        // TODO: Once we integrate II or other IC auth, use the authenticated principal
+        // For email/password authentication, we use the anonymous principal for canister calls.
+        // The backend will identify the user by their session.
+        // Service calls (_with_session) fall through to mock data until BL-031
+        // adds oracle-bridge proxy endpoints — this is intentional (see Dev Notes).
+        // _authUser?.userId from useAuth() is available for BL-031 analytics enhancement.
         const principal = Principal.anonymous();
         setUserPrincipal(principal);
 

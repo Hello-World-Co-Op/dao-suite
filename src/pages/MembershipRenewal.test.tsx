@@ -20,6 +20,26 @@ const mockVerifyMembership = vi.fn();
 const mockIsFirstYearMember = vi.fn();
 const mockGetProratedDividend = vi.fn();
 
+// Mock useAuth from @hello-world-co-op/auth (BL-030.1)
+vi.mock('@hello-world-co-op/auth', () => ({
+  useAuth: () => ({
+    user: { userId: 'test-user-id', email: 'test@example.com', providers: ['EmailPassword'] },
+    isAuthenticated: true,
+    isLoading: false,
+    displayName: 'Test User',
+    icPrincipal: null,
+    membershipStatus: null,
+    refresh: vi.fn(),
+    login: vi.fn(),
+    logout: vi.fn(),
+    roles: [],
+    hasRole: vi.fn(() => false),
+    isAdmin: false,
+    error: null,
+    isBypassed: false,
+  }),
+}));
+
 // Mock the hooks
 vi.mock('../hooks/useMembershipService', () => ({
   useMembershipService: () => ({
