@@ -10,9 +10,8 @@
 
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from '@hello-world-co-op/auth';
+import { AuthProvider, ProtectedRoute, LoginRedirect } from '@hello-world-co-op/auth';
 import ErrorBoundary from './components/ErrorBoundary';
-import { ProtectedRoute } from './components/ProtectedRoute';
 import { AppLayout } from './components/layout';
 import { ToastContainer } from './components/ToastContainer';
 import { OfflineBannerStandalone } from './components/OfflineBanner';
@@ -28,8 +27,6 @@ const PaymentCancel = lazy(() => import('./pages/PaymentCancel'));
 const RenewalSuccess = lazy(() => import('./pages/RenewalSuccess'));
 const RenewalCancel = lazy(() => import('./pages/RenewalCancel'));
 const PaymentHistory = lazy(() => import('./pages/PaymentHistory'));
-const LoginRedirect = lazy(() => import('./pages/LoginRedirect'));
-
 // Proposal routes (Governance)
 const ProposalsPage = lazy(() => import('./pages/ProposalsPage'));
 const CreateProposalPage = lazy(
@@ -70,10 +67,22 @@ export default function App() {
           <Routes>
             {/* Public routes - no authentication required */}
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-            <Route path="/login" element={<LoginRedirect />} />
+            <Route path="/login" element={
+              <LoginRedirect
+                loginUrl={`${import.meta.env.VITE_FOUNDERY_OS_URL || 'http://127.0.0.1:5174'}/login`}
+                fallbackPath="/dashboard"
+              />
+            } />
 
             {/* Protected routes - require authentication, wrapped with AppLayout (PageHeader + Outlet) */}
-            <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+            <Route element={
+              <ProtectedRoute
+                loginUrl={`${import.meta.env.VITE_FOUNDERY_OS_URL || 'http://127.0.0.1:5174'}/login`}
+                redirectBehavior="external"
+              >
+                <AppLayout />
+              </ProtectedRoute>
+            }>
               <Route path="/" element={<Dashboard />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/settings" element={<Settings />} />
