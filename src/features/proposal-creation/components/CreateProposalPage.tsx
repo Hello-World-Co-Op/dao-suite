@@ -14,23 +14,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ProposalWizard } from './ProposalWizard';
 import { Button } from '../../../components/ui/button';
 import { setCurrentDraft } from '@/stores';
-import { getUserId } from '../../../utils/auth';
 import { captureEvent } from '../../../utils/posthog';
 import { useMembership } from '@/hooks/useMembership';
-
-// TODO: Replace with actual auth hook when available
-const useAuth = () => {
-  // Mock auth state - replace with actual implementation
-  return {
-    isAuthenticated: true,
-    principal: getUserId() || 'mock-principal-id',
-  };
-};
+import { useAuth } from '@hello-world-co-op/auth';
 
 export function CreateProposalPage() {
   const navigate = useNavigate();
   const params = useParams<{ draftId?: string }>();
-  const { isAuthenticated, principal } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const principal = user?.userId || 'mock-principal-id';
   const { isActiveMember, isLoading: isMembershipLoading } = useMembership();
   const [showVerificationError, setShowVerificationError] = useState(false);
 

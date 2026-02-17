@@ -23,7 +23,7 @@ import {
   showSuccess,
 } from '@/stores';
 import { Button } from '../../../components/ui/button';
-import { getUserId } from '../../../utils/auth';
+import { useAuth } from '@hello-world-co-op/auth';
 import { trackDraftDeleted } from '../../../utils/posthog';
 
 // ============================================================================
@@ -257,7 +257,8 @@ export function DraftsList({
 }: DraftsListProps) {
   const navigate = useNavigate();
   const allDrafts = useStore($draftsList);
-  const userId = getUserId();
+  const { user } = useAuth();
+  const userId = user?.userId ?? null;
 
   // Local state
   const [searchTerm, setSearchTerm] = useState('');

@@ -22,7 +22,7 @@ export default function KYC() {
   // For email/password authentication, we use the anonymous principal for KYC
   // The backend will identify the user by their session
   // TODO: Once we integrate II or other IC auth, use the authenticated principal
-  const userId = user?.userId ? Principal.anonymous() : null;
+  const userId = user ? Principal.anonymous() : null;
 
   // Combined error state
   const error = verificationError || (!authLoading && !userId ? 'User ID not found. Please log in again.' : null);

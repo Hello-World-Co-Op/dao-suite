@@ -1,44 +1,18 @@
 /**
- * Authentication Helper Utilities
+ * Authentication Error-Handling Utilities
  *
- * Centralized utilities for handling authentication state,
- * token expiration, and automatic logout/redirect.
+ * Centralized utilities for handling token expiration errors,
+ * auth error detection, and automatic logout/redirect.
+ *
+ * BL-030.2: localStorage-dependent functions (getUserData, setUserData,
+ * isAuthenticated, requireAuth, UserData) removed. Use useAuth() from
+ * @hello-world-co-op/auth for authentication state.
  */
 
 import { createLogger } from './logger';
 import { clearAllSensitiveData } from './securityClear';
 
 const log = createLogger('Auth');
-
-export interface UserData {
-  userId: string;
-  email: string;
-  accessToken: string;
-  refreshToken?: string;
-  firstName?: string;
-  lastName?: string;
-}
-
-/**
- * Get user data from localStorage
- */
-export function getUserData(): UserData | null {
-  try {
-    const data = localStorage.getItem('user_data');
-    if (!data) return null;
-    return JSON.parse(data);
-  } catch (error) {
-    log.error('Failed to parse user data:', error);
-    return null;
-  }
-}
-
-/**
- * Save user data to localStorage
- */
-export function setUserData(userData: UserData): void {
-  localStorage.setItem('user_data', JSON.stringify(userData));
-}
 
 /**
  * Clear authentication data and redirect to login
@@ -139,32 +113,6 @@ export async function withAuthErrorHandler<T>(
     // Re-throw non-auth errors
     throw error;
   }
-}
-
-/**
- * Check if user is currently authenticated
- */
-export function isAuthenticated(): boolean {
-  const userData = getUserData();
-  return userData !== null && !!userData.accessToken;
-}
-
-/**
- * Require authentication, redirect to login if not authenticated
- * Useful for protecting routes
- */
-export function requireAuth(returnUrl?: string): UserData {
-  const userData = getUserData();
-
-  if (!userData || !userData.accessToken) {
-    handleSessionExpired(
-      'Please sign in to access this page.',
-      returnUrl || window.location.pathname
-    );
-    throw new Error('Authentication required');
-  }
-
-  return userData;
 }
 
 /**

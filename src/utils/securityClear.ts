@@ -15,8 +15,6 @@
  * ```
  */
 
-import { clearEncryptedTokens } from './tokenEncryption';
-
 // =============================================================================
 // Constants - Keys that store sensitive data
 // =============================================================================
@@ -38,18 +36,12 @@ const AUTH_KEYS = [
   'fos_refresh_expires_at',
   'fos_user_id',
   'fos_session_id',
-  'fos_encrypted_tokens',
-  'fos_token_encryption_key',
-  // Legacy/alternate keys
-  'auth_access_token',
-  'auth_refresh_token',
 ];
 
 /**
  * PII keys that contain personal information
  */
 const PII_KEYS = [
-  'user_data',
   'user_profile',
   'user_email',
   'user_name',
@@ -86,17 +78,6 @@ const SAFE_TO_KEEP = [
 function logInfo(context: string): void {
   if (import.meta.env.DEV) {
     console.info(`[securityClear] ${context}`);
-  }
-}
-
-/**
- * Log warning with appropriate detail level
- */
-function logWarn(context: string, details?: string): void {
-  if (import.meta.env.DEV && details) {
-    console.warn(`[securityClear] ${context}: ${details}`);
-  } else {
-    console.warn(`[securityClear] ${context}`);
   }
 }
 
@@ -148,35 +129,27 @@ function clearSessionStorage(): void {
  * Clear all sensitive data from browser storage
  *
  * This function should be called on logout to ensure:
- * - Auth tokens are removed (encrypted and plain)
- * - PII (email, name, user data) is removed
+ * - Auth tokens are removed from localStorage
+ * - PII (email, name, profile) is removed
  * - Session state is cleared
- * - Encryption keys are cleared
+ * - sessionStorage is cleared
  *
  * Safe to call multiple times (idempotent)
  */
 export function clearAllSensitiveData(): void {
   logInfo('Clearing all sensitive data from browser storage');
 
-  // 1. Clear encrypted tokens (FOS-5.6.6)
-  // This also clears the encryption key from sessionStorage
-  try {
-    clearEncryptedTokens();
-  } catch {
-    logWarn('Failed to clear encrypted tokens');
-  }
-
-  // 2. Clear plain auth data (legacy/fallback)
+  // 1. Clear plain auth data (legacy/fallback)
   clearAuthData();
 
-  // 3. Clear PII (user email, name, profile)
+  // 2. Clear PII (user email, name, profile)
   clearPIIData();
 
-  // 4. Clear session markers
+  // 3. Clear session markers
   clearSessionData();
 
-  // 5. Clear all sessionStorage
-  // This removes any cached state, encryption keys, etc.
+  // 4. Clear all sessionStorage
+  // This removes any cached state, etc.
   clearSessionStorage();
 
   logInfo('Sensitive data cleared');
@@ -210,11 +183,6 @@ export function auditSensitiveData(): string[] {
     if (localStorage.getItem(key) !== null) {
       found.push(`localStorage:${key}`);
     }
-  }
-
-  // Check sessionStorage for encryption key
-  if (sessionStorage.getItem('fos_token_encryption_key') !== null) {
-    found.push('sessionStorage:fos_token_encryption_key');
   }
 
   return found;

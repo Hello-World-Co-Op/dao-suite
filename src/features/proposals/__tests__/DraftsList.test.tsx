@@ -24,9 +24,12 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Mock getUserId
-vi.mock('../../../utils/auth', () => ({
-  getUserId: () => 'test-user-principal',
+// Mock useAuth from @hello-world-co-op/auth
+vi.mock('@hello-world-co-op/auth', () => ({
+  useAuth: () => ({
+    user: { userId: 'test-user-principal' },
+    isAuthenticated: true,
+  }),
 }));
 
 // Wrapper with router

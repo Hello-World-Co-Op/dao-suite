@@ -22,7 +22,7 @@ import {
   $proposalPage,
 } from '@/stores';
 import { Button } from '../components/ui/button';
-import { isAuthenticated } from '../utils/auth';
+import { useAuth } from '@hello-world-co-op/auth';
 import { useMembership } from '@/hooks/useMembership';
 import {
   ProposalCard,
@@ -135,7 +135,7 @@ function EmptyStateNotVoted() {
 export function ProposalsPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const userIsAuthenticated = isAuthenticated();
+  const { isAuthenticated: userIsAuthenticated } = useAuth();
   const { isActiveMember } = useMembership();
   const drafts = useStore($draftsList);
   const votedProposalIds = useStore($userVotedProposalIds);
