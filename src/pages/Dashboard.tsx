@@ -37,7 +37,7 @@ export default function Dashboard() {
   const userPrincipal = icPrincipal;
 
   // Derive welcome name from context (BL-030.1)
-  const welcomeName = displayName ?? user?.email?.split('@')[0] ?? 'Member';
+  const welcomeName = displayName || user?.email?.split('@')[0] || 'Member';
 
   if (authLoading) {
     return (
