@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@hello-world-co-op/auth';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -20,58 +21,25 @@ import { TokenBalance } from '@/components/TokenBalance';
 import { useMembership } from '@/hooks/useMembership';
 import { TreasuryView } from '@/components/TreasuryView';
 
-interface UserData {
-  userId: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-}
-
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [kycVerified, setKycVerified] = useState(false);
+  const { user, isAuthenticated, displayName, isLoading: authLoading } = useAuth();
+  // KYC verification is NOT yet implemented (Epic 2.0)
+  // Always show as not verified until the KYC flow is complete
+  const kycVerified = false;
 
   // Initialize notification polling for authenticated members
-  const isAuthenticated = !!userData;
   const { isActiveMember, isRegistered, icPrincipal } = useMembership();
   useNotificationPoller(isAuthenticated, isActiveMember);
-
-  useEffect(() => {
-    // Load user data from localStorage
-    const storedData = localStorage.getItem('user_data');
-
-    if (!storedData) {
-      // Not logged in, redirect to login
-      navigate('/login');
-      return;
-    }
-
-    try {
-      const data = JSON.parse(storedData) as UserData;
-      setUserData(data);
-
-      // KYC verification is NOT yet implemented (Epic 2.0)
-      // Always show as not verified until the KYC flow is complete
-      // TODO: Query backend get_kyc_status() when KYC is implemented
-      setKycVerified(false);
-      // Clear any stale localStorage from testing
-      localStorage.removeItem('kyc_status');
-    } catch (error) {
-      console.error('Failed to parse user data:', error);
-      navigate('/login');
-      return;
-    } finally {
-      setLoading(false);
-    }
-  }, [navigate]);
 
   // BL-027.3: Use real IC principal from session (via useMembership hook)
   // icPrincipal is null when user hasn't linked Internet Identity
   const userPrincipal = icPrincipal;
 
-  if (loading) {
+  // Derive welcome name from context (BL-030.1)
+  const welcomeName = displayName ?? user?.email?.split('@')[0] ?? 'Member';
+
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center">
         <div className="text-center">
@@ -82,10 +50,6 @@ export default function Dashboard() {
     );
   }
 
-  if (!userData) {
-    return null; // Will redirect to login
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50">
       <div className="py-8 px-4">
@@ -94,7 +58,7 @@ export default function Dashboard() {
           <div className="mb-8">
             <div className="mb-4">
               <h1 className="text-3xl font-bold text-gray-800 mb-2">
-                Welcome back, {userData.firstName}!
+                Welcome back, {welcomeName}!
               </h1>
               <p className="text-gray-600">Your DAO Dashboard</p>
             </div>
@@ -149,16 +113,16 @@ export default function Dashboard() {
             <div>
               <p className="text-sm font-medium text-gray-500">Name</p>
               <p className="text-lg">
-                {userData.firstName} {userData.lastName}
+                {welcomeName}
               </p>
             </div>
             <div>
               <p className="text-sm font-medium text-gray-500">Email</p>
-              <p className="text-lg">{userData.email}</p>
+              <p className="text-lg">{user?.email ?? ''}</p>
             </div>
             <div>
               <p className="text-sm font-medium text-gray-500">User ID</p>
-              <p className="text-sm font-mono text-gray-600">{userData.userId}</p>
+              <p className="text-sm font-mono text-gray-600">{user?.userId ?? ''}</p>
             </div>
           </CardContent>
           </Card>

@@ -81,17 +81,9 @@ export default function PaymentHistory() {
       timestamp: new Date().toISOString(),
     });
 
-    // Check authentication and load payment history
+    // Load payment history (auth gating is handled by ProtectedRoute in App.tsx)
     const init = async () => {
       try {
-        // Check authentication using localStorage (consistent with Login/Dashboard/KYC)
-        const storedData = localStorage.getItem('user_data');
-        if (!storedData) {
-          // Not authenticated, redirect to login
-          navigate('/login');
-          return;
-        }
-
         // For email/password authentication, we use the anonymous principal
         // The backend will identify the user by their session
         // TODO: Once we integrate II or other IC auth, use the authenticated principal
@@ -113,7 +105,7 @@ export default function PaymentHistory() {
 
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadPayments/currentPage intentionally excluded; runs once on mount with initial page
-  }, [navigate]);
+  }, []);
 
   const loadPayments = async (principal: Principal, page: number) => {
     try {

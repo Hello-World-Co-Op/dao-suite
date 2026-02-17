@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@hello-world-co-op/auth';
 import { Principal } from '@dfinity/principal';
 import KYCVerification from '../components/forms/KYCVerification';
 import type { KYCRecord } from '../types/user-service';
@@ -11,61 +12,20 @@ import { createLogger } from '../utils/logger';
 
 const log = createLogger('KYC');
 
-// Helper to initialize user state from localStorage
-function initializeUserState(): {
-  userId: Principal | null;
-  error: string | null;
-  shouldRedirect: boolean;
-} {
-  const storedData = localStorage.getItem('user_data');
-
-  if (!storedData) {
-    return { userId: null, error: null, shouldRedirect: true };
-  }
-
-  try {
-    const data = JSON.parse(storedData);
-    if (!data.userId) {
-      return {
-        userId: null,
-        error: 'User ID not found. Please log in again.',
-        shouldRedirect: false,
-      };
-    }
-
-    // For email/password authentication, we use the anonymous principal for KYC
-    // The backend will identify the user by their session
-    // TODO: Once we integrate II or other IC auth, use the authenticated principal
-    return { userId: Principal.anonymous(), error: null, shouldRedirect: false };
-  } catch (err) {
-    log.error('Failed to load user data:', err);
-    return {
-      userId: null,
-      error: 'Failed to load user data. Please log in again.',
-      shouldRedirect: false,
-    };
-  }
-}
-
 export default function KYC() {
   const navigate = useNavigate();
-
-  // Use lazy initialization to check localStorage on first render
-  const [initialState] = useState(() => initializeUserState());
-  const { userId, error: initError, shouldRedirect } = initialState;
+  const { user, isLoading: authLoading } = useAuth();
 
   // Separate state for verification errors that can occur after mount
   const [verificationError, setVerificationError] = useState<string | null>(null);
 
-  // Combined error state
-  const error = verificationError || initError;
+  // For email/password authentication, we use the anonymous principal for KYC
+  // The backend will identify the user by their session
+  // TODO: Once we integrate II or other IC auth, use the authenticated principal
+  const userId = user?.userId ? Principal.anonymous() : null;
 
-  useEffect(() => {
-    // Handle redirect to login if no stored data
-    if (shouldRedirect) {
-      navigate('/login');
-    }
-  }, [navigate, shouldRedirect]);
+  // Combined error state
+  const error = verificationError || (!authLoading && !userId ? 'User ID not found. Please log in again.' : null);
 
   const handleVerificationComplete = (record: KYCRecord) => {
     log.debug('Verification completed:', record);
@@ -80,6 +40,17 @@ export default function KYC() {
     log.error('Verification failed:', errorMessage);
     setVerificationError(errorMessage);
   };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500 mb-4"></div>
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (error || !userId) {
     return (

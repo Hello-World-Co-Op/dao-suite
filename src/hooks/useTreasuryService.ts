@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useAuth } from '@hello-world-co-op/auth';
 import { HttpAgent, Actor, type ActorSubclass } from '@dfinity/agent';
 import { IDL } from '@dfinity/candid';
 import { Principal } from '@dfinity/principal';
@@ -163,6 +164,7 @@ function createActor(): ActorSubclass<TreasuryServiceActor> {
 
 export function useTreasuryService() {
   const actor = useMemo(() => createActor(), []);
+  const { user } = useAuth();
 
   return {
     /**
@@ -176,7 +178,7 @@ export function useTreasuryService() {
      * @param endDate - Optional end date (timestamp in nanoseconds)
      */
     getPaymentHistory: async (
-      user: Principal,
+      userPrincipal: Principal,
       limit: number,
       offset: number,
       paymentTypeFilter?: PaymentType,
@@ -184,18 +186,14 @@ export function useTreasuryService() {
       endDate?: bigint
     ): Promise<PaymentRecord[]> => {
       try {
-        // Get access token from localStorage
-        const storedData = localStorage.getItem('user_data');
-        if (!storedData) {
-          throw new Error('No user session found');
-        }
-
-        const userData = JSON.parse(storedData);
-        const accessToken = userData.accessToken;
-
-        if (!accessToken) {
-          throw new Error('No access token found in session');
-        }
+        // NOTE: Direct-to-canister _with_session calls require a raw access token,
+        // which is only available in the httpOnly cookie (not accessible to JS).
+        // BL-031: Replace with oracle-bridge proxy endpoint call when available.
+        // The mock fallback path below is the current behavior and is intentional.
+        const userId = user?.userId;
+        if (!userId) { throw new Error('No user session found'); }
+        const accessToken: string | undefined = undefined;
+        if (!accessToken) { throw new Error('No access token found in session'); }
 
         // Call session-based method
         const result = await actor.get_payment_history_with_session(
@@ -221,7 +219,7 @@ export function useTreasuryService() {
         const mockPayments: PaymentRecord[] = [
           {
             id: 1n,
-            user_id: user,
+            user_id: userPrincipal,
             amount: 2500n, // $25.00
             currency: 'USD',
             payment_type: { Initial: null },
@@ -233,7 +231,7 @@ export function useTreasuryService() {
           },
           {
             id: 2n,
-            user_id: user,
+            user_id: userPrincipal,
             amount: 2500n, // $25.00
             currency: 'USD',
             payment_type: { Renewal: null },
@@ -245,7 +243,7 @@ export function useTreasuryService() {
           },
           {
             id: 3n,
-            user_id: user,
+            user_id: userPrincipal,
             amount: 2500n, // $25.00
             currency: 'USD',
             payment_type: { Renewal: null },
@@ -273,24 +271,20 @@ export function useTreasuryService() {
      * @param endDate - Optional end date (timestamp in nanoseconds)
      */
     getPaymentCount: async (
-      user: Principal,
+      _userPrincipal: Principal,
       paymentTypeFilter?: PaymentType,
       startDate?: bigint,
       endDate?: bigint
     ): Promise<bigint> => {
       try {
-        // Get access token from localStorage
-        const storedData = localStorage.getItem('user_data');
-        if (!storedData) {
-          throw new Error('No user session found');
-        }
-
-        const userData = JSON.parse(storedData);
-        const accessToken = userData.accessToken;
-
-        if (!accessToken) {
-          throw new Error('No access token found in session');
-        }
+        // NOTE: Direct-to-canister _with_session calls require a raw access token,
+        // which is only available in the httpOnly cookie (not accessible to JS).
+        // BL-031: Replace with oracle-bridge proxy endpoint call when available.
+        // The mock fallback path below is the current behavior and is intentional.
+        const userId = user?.userId;
+        if (!userId) { throw new Error('No user session found'); }
+        const accessToken: string | undefined = undefined;
+        if (!accessToken) { throw new Error('No access token found in session'); }
 
         // Call session-based method
         const result = await actor.get_payment_count_with_session(

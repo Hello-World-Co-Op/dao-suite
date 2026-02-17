@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '@hello-world-co-op/auth';
 import { AuthClient } from '@dfinity/auth-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,14 +40,6 @@ function getOracleBridgeUrl(): string {
   return 'http://localhost:3000';
 }
 
-interface UserData {
-  userId: string;
-  accessToken: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-}
-
 // Unified device interface for display
 interface DisplayDevice {
   id: string;
@@ -68,10 +61,9 @@ export default function Settings() {
     const validTabs = ['identity', 'custody', 'devices', 'notifications', 'privacy'];
     return tabParam && validTabs.includes(tabParam) ? tabParam : 'identity';
   }, [searchParams]);
+  const { user, isLoading: authLoading, refresh } = useAuth();
   const authService = useAuthService();
   const userService = useUserService();
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
 
   // Internet Identity state
   const [iiLinked, setIiLinked] = useState(false);
@@ -99,52 +91,36 @@ export default function Settings() {
   } | null>(null);
 
   useEffect(() => {
-    // Load user data from localStorage
-    const storedData = localStorage.getItem('user_data');
+    if (!user?.userId) return;
 
-    if (!storedData) {
-      navigate('/login');
-      return;
-    }
-
-    try {
-      const data = JSON.parse(storedData) as UserData;
-      setUserData(data);
-
-      // Check II linking status from backend using user_id
-      const checkIIStatus = async () => {
-        try {
-          const isLinked = await userService.getIILinkStatus(data.userId);
-          setIiLinked(isLinked);
-          // Sync with localStorage
-          if (isLinked) {
-            localStorage.setItem('ii_linked', 'true');
-          } else {
-            localStorage.removeItem('ii_linked');
-          }
-        } catch (error) {
-          log.debug('Failed to check II status from backend:', error);
-          // Fall back to localStorage only if backend fails
-          const iiStatus = localStorage.getItem('ii_linked');
-          setIiLinked(iiStatus === 'true');
+    // Check II linking status from backend using user_id
+    const checkIIStatus = async () => {
+      try {
+        const isLinked = await userService.getIILinkStatus(user.userId);
+        setIiLinked(isLinked);
+        // Sync with localStorage
+        if (isLinked) {
+          localStorage.setItem('ii_linked', 'true');
+        } else {
+          localStorage.removeItem('ii_linked');
         }
-      };
-      checkIIStatus();
+      } catch (error) {
+        log.debug('Failed to check II status from backend:', error);
+        // Fall back to localStorage only if backend fails
+        const iiStatus = localStorage.getItem('ii_linked');
+        setIiLinked(iiStatus === 'true');
+      }
+    };
+    checkIIStatus();
 
-      // Load self-custody status (would need to call user-service)
-      // For now, mock it
-      setSelfCustodyStatus('never');
+    // Load self-custody status (would need to call user-service)
+    // For now, mock it
+    setSelfCustodyStatus('never');
 
-      // Load devices
-      loadDevices(data.userId);
-    } catch (error) {
-      console.error('Failed to parse user data:', error);
-      navigate('/login');
-    } finally {
-      setLoading(false);
-    }
+    // Load devices
+    loadDevices(user.userId);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadDevices intentionally excluded; runs once on mount
-  }, [navigate]);
+  }, [user?.userId]);
 
   const loadDevices = async (userId: string) => {
     setDevicesLoading(true);
@@ -188,7 +164,7 @@ export default function Settings() {
   };
 
   const handleLinkII = async () => {
-    if (!userData) {
+    if (!user) {
       setIiMessage({ type: 'error', text: 'User data not found. Please log in again.' });
       return;
     }
@@ -230,12 +206,15 @@ export default function Settings() {
               if (result.success) {
                 setIiLinked(true);
                 localStorage.setItem('ii_linked', 'true');
-                // Update user_data with the linked IC principal so TokenBalance shows it
+                // Refresh session to pick up newly linked icPrincipal in AuthContext
                 try {
-                  const userData = JSON.parse(localStorage.getItem('user_data') || '{}');
-                  userData.icPrincipal = principal;
-                  localStorage.setItem('user_data', JSON.stringify(userData));
-                } catch { /* ignore parse errors */ }
+                  await refresh();
+                } catch {
+                  setIiMessage({
+                    type: 'error',
+                    text: 'Internet Identity linked, but session refresh failed. Please reload the page.',
+                  });
+                }
                 setIiMessage({ type: 'success', text: 'Internet Identity linked successfully!' });
               } else {
                 if (isAuthError(result.message)) {
@@ -274,7 +253,7 @@ export default function Settings() {
   };
 
   const handleUnlinkII = async () => {
-    if (!userData) return;
+    if (!user) return;
 
     setIiLinking(true);
     setIiMessage(null);
@@ -310,7 +289,7 @@ export default function Settings() {
   };
 
   const handleVerifySelfCustody = async () => {
-    if (!userData) return;
+    if (!user) return;
 
     setSelfCustodyVerifying(true);
     setSelfCustodyMessage(null);
@@ -399,7 +378,7 @@ export default function Settings() {
   };
 
   const handleRevokeDevice = async (deviceId: string) => {
-    if (!userData) return;
+    if (!user) return;
 
     setDeviceMessage(null);
 
@@ -419,26 +398,28 @@ export default function Settings() {
   };
 
   const handleRevokeOtherSessions = async () => {
-    if (!userData) return;
+    if (!user) return;
 
     setDeviceMessage(null);
 
     try {
       // Use auth-service removeOtherDevices to revoke all devices and sessions except current
-      const removedCount = await authService.removeOtherDevices(userData.accessToken);
+      // NOTE: accessToken is in httpOnly cookie, not available to JS.
+      // This call will fail until BL-031 adds oracle-bridge proxy endpoint.
+      const removedCount = await authService.removeOtherDevices('');
       setDeviceMessage({
         type: 'success',
         text: `Successfully removed ${removedCount} other device(s) and their sessions. Your current session remains active.`,
       });
       // Refresh devices list
-      await loadDevices(userData.userId);
+      if (user?.userId) await loadDevices(user.userId);
     } catch (error) {
       console.error('Remove other devices error:', error);
       setDeviceMessage({ type: 'error', text: `Error: ${error}` });
     }
   };
 
-  if (loading || !userData) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
@@ -732,7 +713,7 @@ export default function Settings() {
 
           {/* Privacy Tab */}
           <TabsContent value="privacy">
-            <VisibilitySettings userPrincipal={userData?.userId} />
+            <VisibilitySettings userPrincipal={user?.userId} />
           </TabsContent>
         </Tabs>
       </div>

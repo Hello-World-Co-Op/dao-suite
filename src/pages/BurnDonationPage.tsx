@@ -2,13 +2,13 @@
  * Burn Donation Page
  *
  * Page wrapper for the burn donation feature.
- * Requires authenticated user.
+ * Requires authenticated user (via ProtectedRoute in App.tsx).
  *
  * Story: 9-2-3-burn-donation
  * ACs: 1, 2, 3, 4, 5
  */
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Home } from 'lucide-react';
 import { BurnDonation } from '@/components/BurnDonation';
@@ -17,58 +17,12 @@ import { useMembership } from '@/hooks/useMembership';
 // Intentionally importing state utilities for potential future cleanup operations
 // import { clearBurnPool, clearBurnHistory } from '@/stores';
 
-interface UserData {
-  userId: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-}
-
 export default function BurnDonationPage() {
   const navigate = useNavigate();
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
   const { icPrincipal } = useMembership();
-
-  useEffect(() => {
-    // Load user data from localStorage
-    const storedData = localStorage.getItem('user_data');
-
-    if (!storedData) {
-      // Not logged in, redirect to login
-      navigate('/login');
-      return;
-    }
-
-    try {
-      const data = JSON.parse(storedData) as UserData;
-      setUserData(data);
-    } catch (error) {
-      console.error('Failed to parse user data:', error);
-      navigate('/login');
-      return;
-    } finally {
-      setLoading(false);
-    }
-  }, [navigate]);
 
   // BL-027.3: Use real IC principal from session (via useMembership hook)
   const userPrincipal = icPrincipal;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500 mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!userData) {
-    return null; // Will redirect to login
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 to-red-50 py-8 px-4">

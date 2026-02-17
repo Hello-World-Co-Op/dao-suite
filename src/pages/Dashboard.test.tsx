@@ -5,13 +5,20 @@
  *
  * Story: BL-011.5 — Frontend Membership Gating
  * Story: BL-027.3 — Dashboard Token Balance Uses IC Principal
- * AC: 2, 3, 8 (BL-011.5), 1 (BL-027.3)
+ * Story: BL-030.1 — Migrate to useAuth() context
+ * AC: 2, 3, 8 (BL-011.5), 1 (BL-027.3), 2, 8 (BL-030.1)
  */
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+
+// Mock useAuth from @hello-world-co-op/auth
+const mockUseAuth = vi.fn();
+vi.mock('@hello-world-co-op/auth', () => ({
+  useAuth: () => mockUseAuth(),
+}));
 
 // Mock useMembership hook
 const mockUseMembership = vi.fn();
@@ -46,17 +53,6 @@ vi.mock('@/components/TreasuryView', () => ({
 import Dashboard from './Dashboard';
 
 function renderDashboard() {
-  // Set up user data in localStorage so Dashboard doesn't redirect
-  localStorage.setItem(
-    'user_data',
-    JSON.stringify({
-      userId: 'test-user-123',
-      email: 'test@example.com',
-      firstName: 'Test',
-      lastName: 'User',
-    })
-  );
-
   return render(
     <MemoryRouter>
       <Dashboard />
@@ -67,7 +63,84 @@ function renderDashboard() {
 describe('Dashboard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    localStorage.clear();
+    // Default auth mock — authenticated user
+    mockUseAuth.mockReturnValue({
+      user: { userId: 'test-user-123', email: 'test@example.com', providers: ['EmailPassword'] },
+      isAuthenticated: true,
+      isLoading: false,
+      displayName: 'Test User',
+      icPrincipal: null,
+      membershipStatus: null,
+      refresh: vi.fn(),
+      login: vi.fn(),
+      logout: vi.fn(),
+      roles: [],
+      hasRole: vi.fn(() => false),
+      isAdmin: false,
+      error: null,
+      isBypassed: false,
+    });
+  });
+
+  describe('BL-030.1 AC2: Dashboard displays correct identity from useAuth()', () => {
+    it('should show displayName in welcome heading', () => {
+      mockUseMembership.mockReturnValue({
+        membershipStatus: 'Active',
+        isActiveMember: true,
+        isRegistered: false,
+        isLoading: false,
+        icPrincipal: null,
+      });
+
+      renderDashboard();
+
+      expect(screen.getByText('Welcome back, Test User!')).toBeInTheDocument();
+    });
+
+    it('should fall back to email prefix when displayName is null', () => {
+      mockUseAuth.mockReturnValue({
+        user: { userId: 'test-user-123', email: 'coby@example.com', providers: ['EmailPassword'] },
+        isAuthenticated: true,
+        isLoading: false,
+        displayName: null,
+        icPrincipal: null,
+        membershipStatus: null,
+        refresh: vi.fn(),
+        login: vi.fn(),
+        logout: vi.fn(),
+        roles: [],
+        hasRole: vi.fn(() => false),
+        isAdmin: false,
+        error: null,
+        isBypassed: false,
+      });
+      mockUseMembership.mockReturnValue({
+        membershipStatus: null,
+        isActiveMember: false,
+        isRegistered: false,
+        isLoading: false,
+        icPrincipal: null,
+      });
+
+      renderDashboard();
+
+      expect(screen.getByText('Welcome back, coby!')).toBeInTheDocument();
+    });
+
+    it('should show user email and userId from useAuth() context', () => {
+      mockUseMembership.mockReturnValue({
+        membershipStatus: 'Active',
+        isActiveMember: true,
+        isRegistered: false,
+        isLoading: false,
+        icPrincipal: null,
+      });
+
+      renderDashboard();
+
+      expect(screen.getByText('test@example.com')).toBeInTheDocument();
+      expect(screen.getByText('test-user-123')).toBeInTheDocument();
+    });
   });
 
   describe('AC3: Upgrade prompt for Registered users', () => {
@@ -153,6 +226,38 @@ describe('Dashboard', () => {
           principal: null,
         })
       );
+    });
+  });
+
+  describe('Loading state', () => {
+    it('should show loading spinner when auth is loading', () => {
+      mockUseAuth.mockReturnValue({
+        user: null,
+        isAuthenticated: false,
+        isLoading: true,
+        displayName: null,
+        icPrincipal: null,
+        membershipStatus: null,
+        refresh: vi.fn(),
+        login: vi.fn(),
+        logout: vi.fn(),
+        roles: [],
+        hasRole: vi.fn(() => false),
+        isAdmin: false,
+        error: null,
+        isBypassed: false,
+      });
+      mockUseMembership.mockReturnValue({
+        membershipStatus: null,
+        isActiveMember: false,
+        isRegistered: false,
+        isLoading: true,
+        icPrincipal: null,
+      });
+
+      renderDashboard();
+
+      expect(screen.getByText('Loading your dashboard...')).toBeInTheDocument();
     });
   });
 });

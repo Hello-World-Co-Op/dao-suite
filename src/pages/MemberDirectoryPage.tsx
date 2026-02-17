@@ -3,67 +3,24 @@
  *
  * Page wrapper for the member directory feature.
  * Allows browsing DAO members with search and filtering.
+ * Auth gating is handled by ProtectedRoute in App.tsx.
  *
  * Story: 9-3-1-member-directory
  * ACs: 1, 2, 3, 4, 5
  */
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '@hello-world-co-op/auth';
 import { ArrowLeft, Home, Users } from 'lucide-react';
 import { MemberDirectory } from '@/components/MemberDirectory';
 
-interface UserData {
-  userId: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-}
-
 export default function MemberDirectoryPage() {
   const navigate = useNavigate();
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Load user data from localStorage
-    const storedData = localStorage.getItem('user_data');
-
-    if (!storedData) {
-      // Not logged in, redirect to login
-      navigate('/login');
-      return;
-    }
-
-    try {
-      const data = JSON.parse(storedData) as UserData;
-      setUserData(data);
-    } catch (error) {
-      console.error('Failed to parse user data:', error);
-      navigate('/login');
-      return;
-    } finally {
-      setLoading(false);
-    }
-  }, [navigate]);
+  const { user } = useAuth();
 
   // Derive principal from user ID
-  const userPrincipal = userData?.userId ?? undefined;
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal-500 mb-4"></div>
-          <p className="text-gray-600">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!userData) {
-    return null; // Will redirect to login
-  }
+  const userPrincipal = user?.userId;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 py-8 px-4">

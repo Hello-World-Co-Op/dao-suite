@@ -1,30 +1,18 @@
+/**
+ * MembershipRenewal Tests
+ *
+ * Story: BL-030.1 — Migrate to useAuth() context
+ * AC: 2, 8
+ *
+ * Auth gating is handled by ProtectedRoute in App.tsx.
+ * This component no longer reads from localStorage for auth state.
+ */
+
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
 import { Principal } from '@dfinity/principal';
 import MembershipRenewal from './MembershipRenewal';
-
-// Mock localStorage globally for this test file
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: (key: string) => store[key] || null,
-    setItem: (key: string, value: string) => {
-      store[key] = value.toString();
-    },
-    removeItem: (key: string) => {
-      delete store[key];
-    },
-    clear: () => {
-      store = {};
-    },
-  };
-})();
-
-Object.defineProperty(globalThis, 'localStorage', {
-  value: localStorageMock,
-  writable: true,
-});
 
 // Create mock service functions
 const mockCanRenew = vi.fn();
@@ -47,16 +35,6 @@ vi.mock('../utils/analytics', () => ({
   trackEvent: vi.fn(),
   trackPageView: vi.fn(),
 }));
-
-// Mock router
-const mockNavigate = vi.fn();
-vi.mock('react-router-dom', async () => {
-  const actual = await vi.importActual('react-router-dom');
-  return {
-    ...actual,
-    useNavigate: () => mockNavigate,
-  };
-});
 
 // Helper to render component with router
 const renderWithRouter = (component: React.ReactElement) => {
@@ -93,15 +71,8 @@ describe('MembershipRenewal Component', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // Set up localStorage with user_data (consistent with Login/Dashboard/KYC/PaymentHistory)
-    const userData = {
-      userId: 'test-user-id',
-      email: 'test@example.com',
-      firstName: 'Test',
-      lastName: 'User',
-    };
-    localStorage.setItem('user_data', JSON.stringify(userData));
     // Mock date to be in renewal window for all tests
+    // Auth gating is handled by ProtectedRoute — no localStorage setup needed
     mockRenewalWindow();
   });
 
@@ -326,16 +297,7 @@ describe('MembershipRenewal Component', () => {
     });
   });
 
-  it('should redirect to login if not authenticated', async () => {
-    // Clear localStorage to simulate unauthenticated user
-    localStorage.clear();
-
-    renderWithRouter(<MembershipRenewal />);
-
-    await waitFor(() => {
-      expect(mockNavigate).toHaveBeenCalledWith('/login');
-    });
-  });
+  // Auth redirect test removed — auth gating is handled by ProtectedRoute in App.tsx (BL-030.1)
 
   it('should handle canister query failure gracefully', async () => {
     mockCanRenew.mockResolvedValue({ Err: 'Canister unreachable' });

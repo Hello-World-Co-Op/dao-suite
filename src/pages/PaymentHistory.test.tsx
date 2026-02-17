@@ -1,6 +1,12 @@
 /**
  * Unit tests for PaymentHistory component
  * Tests loading, display, filtering, pagination, CSV export, and error handling
+ *
+ * Story: BL-030.1 — Migrate to useAuth() context
+ * AC: 2, 8
+ *
+ * Auth gating is handled by ProtectedRoute in App.tsx.
+ * This component no longer reads from localStorage for auth state.
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -81,14 +87,7 @@ describe('PaymentHistory', () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Setup localStorage with user_data (consistent with Login/Dashboard/KYC)
-    const userData = {
-      userId: 'test-user-id',
-      email: 'test@example.com',
-      firstName: 'Test',
-      lastName: 'User',
-    };
-    global.localStorage.setItem('user_data', JSON.stringify(userData));
+    // Auth gating is handled by ProtectedRoute — no localStorage setup needed (BL-030.1)
 
     // Default mock implementations
     mockGetPaymentHistory.mockResolvedValue(mockPaymentRecords);
@@ -98,7 +97,6 @@ describe('PaymentHistory', () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
-    global.localStorage.clear();
   });
 
   const renderPaymentHistory = () => {
@@ -109,18 +107,10 @@ describe('PaymentHistory', () => {
     );
   };
 
-  describe('Authentication', () => {
-    it('should redirect to login if not authenticated', async () => {
-      global.localStorage.clear(); // Remove user_data
+  // Auth redirect test removed — auth gating is handled by ProtectedRoute in App.tsx (BL-030.1)
 
-      renderPaymentHistory();
-
-      await waitFor(() => {
-        expect(mockNavigate).toHaveBeenCalledWith('/login');
-      });
-    });
-
-    it('should load payment history when authenticated', async () => {
+  describe('Data Loading', () => {
+    it('should load payment history on mount', async () => {
       renderPaymentHistory();
 
       await waitFor(() => {

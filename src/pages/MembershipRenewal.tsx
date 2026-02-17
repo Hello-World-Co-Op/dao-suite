@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Principal } from '@dfinity/principal';
+// Auth gating is handled by ProtectedRoute in App.tsx — no localStorage check needed
 import { useMembershipService, type MembershipRecord } from '../hooks/useMembershipService';
 import { trackEvent, trackPageView } from '../utils/analytics';
 
@@ -42,7 +42,6 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 }
 
 export default function MembershipRenewal() {
-  const navigate = useNavigate();
   const membershipService = useMembershipService();
 
   const [loading, setLoading] = useState(true);
@@ -69,17 +68,9 @@ export default function MembershipRenewal() {
     const windowCheck = isInRenewalWindow();
     setInRenewalWindow(windowCheck);
 
-    // Check authentication and load membership data
+    // Load membership data (auth gating is handled by ProtectedRoute in App.tsx)
     const init = async () => {
       try {
-        // Check authentication using localStorage (consistent with Login/Dashboard/KYC/PaymentHistory)
-        const storedData = localStorage.getItem('user_data');
-        if (!storedData) {
-          // Not authenticated, redirect to login
-          navigate('/login');
-          return;
-        }
-
         // For email/password authentication, we use the anonymous principal
         // The backend will identify the user by their session
         // TODO: Once we integrate II or other IC auth, use the authenticated principal
@@ -103,7 +94,7 @@ export default function MembershipRenewal() {
 
     init();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- loadMembershipData intentionally excluded; runs once on mount
-  }, [navigate]);
+  }, []);
 
   const loadMembershipData = async (principal: Principal) => {
     try {

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useAuth } from '@hello-world-co-op/auth';
 import { HttpAgent, Actor, type ActorSubclass } from '@dfinity/agent';
 import { IDL } from '@dfinity/candid';
 import { Principal } from '@dfinity/principal';
@@ -130,6 +131,7 @@ function createActor(): ActorSubclass<MembershipServiceActor> {
 
 export function useMembershipService() {
   const actor = useMemo(() => createActor(), []);
+  const { user } = useAuth();
 
   return {
     /**
@@ -139,18 +141,15 @@ export function useMembershipService() {
      */
     canRenew: async (_principal: Principal): Promise<{ Ok: boolean } | { Err: string }> => {
       try {
-        // Get access token from localStorage
-        const storedData = localStorage.getItem('user_data');
-        if (!storedData) {
-          throw new Error('No user session found');
-        }
-
-        const userData = JSON.parse(storedData);
-        const accessToken = userData.accessToken;
-
-        if (!accessToken) {
-          throw new Error('No access token found in session');
-        }
+        // NOTE: Direct-to-canister _with_session calls require a raw access token,
+        // which is only available in the httpOnly cookie (not accessible to JS).
+        // These calls will fall through to mock data until oracle-bridge proxy
+        // endpoints are added in BL-031. The userId is available for future use.
+        const userId = user?.userId;
+        if (!userId) { throw new Error('No user session found'); }
+        // accessToken is intentionally not available here (httpOnly cookie — BL-031)
+        const accessToken: string | undefined = undefined;
+        if (!accessToken) { throw new Error('No access token found in session'); }
 
         // Call session-based method
         return await actor.can_renew_with_session(accessToken);
@@ -171,18 +170,13 @@ export function useMembershipService() {
      */
     verifyMembership: async (principal: Principal): Promise<[] | [MembershipRecord]> => {
       try {
-        // Get access token from localStorage
-        const storedData = localStorage.getItem('user_data');
-        if (!storedData) {
-          throw new Error('No user session found');
-        }
-
-        const userData = JSON.parse(storedData);
-        const accessToken = userData.accessToken;
-
-        if (!accessToken) {
-          throw new Error('No access token found in session');
-        }
+        // NOTE: Direct-to-canister _with_session calls require a raw access token,
+        // which is only available in the httpOnly cookie (not accessible to JS).
+        // BL-031: Replace with oracle-bridge proxy endpoint call when available.
+        const userId = user?.userId;
+        if (!userId) { throw new Error('No user session found'); }
+        const accessToken: string | undefined = undefined;
+        if (!accessToken) { throw new Error('No access token found in session'); }
 
         // Call session-based method
         const result = await actor.verify_membership_with_session(accessToken);
@@ -226,18 +220,13 @@ export function useMembershipService() {
       _principal: Principal
     ): Promise<{ Ok: boolean } | { Err: string }> => {
       try {
-        // Get access token from localStorage
-        const storedData = localStorage.getItem('user_data');
-        if (!storedData) {
-          throw new Error('No user session found');
-        }
-
-        const userData = JSON.parse(storedData);
-        const accessToken = userData.accessToken;
-
-        if (!accessToken) {
-          throw new Error('No access token found in session');
-        }
+        // NOTE: Direct-to-canister _with_session calls require a raw access token,
+        // which is only available in the httpOnly cookie (not accessible to JS).
+        // BL-031: Replace with oracle-bridge proxy endpoint call when available.
+        const userId = user?.userId;
+        if (!userId) { throw new Error('No user session found'); }
+        const accessToken: string | undefined = undefined;
+        if (!accessToken) { throw new Error('No access token found in session'); }
 
         // Call session-based method
         return await actor.is_first_year_member_with_session(accessToken);
@@ -258,18 +247,13 @@ export function useMembershipService() {
       totalDividend: bigint
     ): Promise<{ Ok: bigint } | { Err: string }> => {
       try {
-        // Get access token from localStorage
-        const storedData = localStorage.getItem('user_data');
-        if (!storedData) {
-          throw new Error('No user session found');
-        }
-
-        const userData = JSON.parse(storedData);
-        const accessToken = userData.accessToken;
-
-        if (!accessToken) {
-          throw new Error('No access token found in session');
-        }
+        // NOTE: Direct-to-canister _with_session calls require a raw access token,
+        // which is only available in the httpOnly cookie (not accessible to JS).
+        // BL-031: Replace with oracle-bridge proxy endpoint call when available.
+        const userId = user?.userId;
+        if (!userId) { throw new Error('No user session found'); }
+        const accessToken: string | undefined = undefined;
+        if (!accessToken) { throw new Error('No access token found in session'); }
 
         // Call session-based method
         return await actor.get_prorated_dividend_with_session(accessToken, totalDividend);

@@ -1,16 +1,16 @@
 /**
  * useMembership Hook
  *
- * Session-based membership status hook for UI gating.
- * Reads membership_status from the oracle-bridge session (BL-011.4).
- * Does NOT call the membership canister directly.
+ * Thin wrapper around useAuth() that provides membership-specific
+ * derived state. Reads membershipStatus and icPrincipal directly
+ * from AuthContext (populated by oracle-bridge session check on mount).
  *
  * Story: BL-011.5 — Frontend Membership Gating
- * AC: 1
+ * Story: BL-030.1 — Migrate to useAuth() context
+ * AC: 1, 6
  */
 
-import { useState, useEffect } from 'react';
-import { checkSession, getSessionState } from '@/services/authCookieClient';
+import { useAuth } from '@hello-world-co-op/auth';
 
 export type MembershipStatusValue = 'Registered' | 'Active' | 'Expired' | 'Revoked' | null;
 
@@ -22,24 +22,6 @@ export interface UseMembershipResult {
   icPrincipal: string | null;
 }
 
-// Module-level cache to avoid redundant session calls across
-// components that mount simultaneously.
-// cachedUserId ensures the cache is scoped per-user: if user A logs out
-// and user B logs in within the TTL, the stale entry is invalidated.
-let cachedStatus: MembershipStatusValue | undefined;
-let cachedUserId: string | undefined;
-let cacheTimestamp = 0;
-const CACHE_TTL_MS = 5000; // 5 seconds
-
-function isCacheValidForUser(userId: string | undefined): boolean {
-  return (
-    cachedStatus !== undefined &&
-    cachedUserId !== undefined &&
-    cachedUserId === userId &&
-    Date.now() - cacheTimestamp < CACHE_TTL_MS
-  );
-}
-
 function toMembershipStatus(raw: string | null | undefined): MembershipStatusValue {
   if (raw === 'Active' || raw === 'Registered' || raw === 'Expired' || raw === 'Revoked') {
     return raw;
@@ -48,98 +30,23 @@ function toMembershipStatus(raw: string | null | undefined): MembershipStatusVal
 }
 
 /**
- * Hook to get current user's membership status from the session.
+ * Hook to get current user's membership status from the auth context.
  *
  * Returns:
  * - membershipStatus: "Registered" | "Active" | "Expired" | "Revoked" | null
  * - isActiveMember: true only when membershipStatus === "Active"
  * - isRegistered: true when membershipStatus === "Registered"
- * - isLoading: true while fetching session
+ * - isLoading: true while auth session is being checked on mount
+ * - icPrincipal: IC principal string or null if not linked
  */
 export function useMembership(): UseMembershipResult {
-  // Read current userId from in-memory session state to scope the cache
-  const currentUserId = getSessionState().userId;
-
-  const [membershipStatus, setMembershipStatus] = useState<MembershipStatusValue>(
-    isCacheValidForUser(currentUserId) ? cachedStatus! : null
-  );
-  const [isLoading, setIsLoading] = useState(!isCacheValidForUser(currentUserId));
-
-  useEffect(() => {
-    // If cache is valid for the current user, use it immediately
-    if (isCacheValidForUser(currentUserId)) {
-      setMembershipStatus(cachedStatus!);
-      setIsLoading(false);
-      return;
-    }
-
-    // Check if in-memory session state already has membershipStatus
-    const currentState = getSessionState();
-    if (currentState.authenticated && currentState.membershipStatus !== undefined) {
-      const status = toMembershipStatus(currentState.membershipStatus);
-      cachedStatus = status;
-      cachedUserId = currentState.userId;
-      cacheTimestamp = Date.now();
-      setMembershipStatus(status);
-      setIsLoading(false);
-      return;
-    }
-
-    // Otherwise, fetch from server
-    let cancelled = false;
-
-    async function fetchMembership() {
-      try {
-        const session = await checkSession();
-        if (cancelled) return;
-
-        const status = toMembershipStatus(session.membershipStatus);
-        cachedStatus = status;
-        cachedUserId = session.userId;
-        cacheTimestamp = Date.now();
-        setMembershipStatus(status);
-      } catch {
-        if (cancelled) return;
-        // Graceful degradation: session check failed
-        cachedStatus = null;
-        cachedUserId = undefined;
-        cacheTimestamp = Date.now();
-        setMembershipStatus(null);
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    fetchMembership();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentUserId]);
-
-  // BL-027.2: Read icPrincipal from localStorage user_data
-  const userData = typeof window !== 'undefined'
-    ? JSON.parse(localStorage.getItem('user_data') || '{}')
-    : {};
-  const icPrincipal: string | null = userData.icPrincipal || null;
-
+  const { membershipStatus: rawStatus, icPrincipal, isLoading } = useAuth();
+  const membershipStatus = toMembershipStatus(rawStatus);
   return {
     membershipStatus,
     isActiveMember: membershipStatus === 'Active',
     isRegistered: membershipStatus === 'Registered',
     isLoading,
-    icPrincipal,
+    icPrincipal: icPrincipal ?? null,
   };
-}
-
-/**
- * Reset the module-level cache (for testing only)
- * @internal
- */
-export function resetMembershipCache(): void {
-  cachedStatus = undefined;
-  cachedUserId = undefined;
-  cacheTimestamp = 0;
 }
