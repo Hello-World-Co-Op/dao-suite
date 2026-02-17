@@ -60,7 +60,7 @@ function PageLoader() {
 
 export default function App() {
   return (
-    <AuthProvider config={{ apiBaseUrl: import.meta.env.VITE_ORACLE_BRIDGE_URL }}>
+    <AuthProvider config={{ apiBaseUrl: import.meta.env.VITE_ORACLE_BRIDGE_URL, e2eBypass: import.meta.env.VITE_E2E_AUTH_BYPASS === 'true', devBypass: import.meta.env.VITE_DEV_AUTH_BYPASS === 'true' }}>
     <BrowserRouter>
       <ErrorBoundary>
         <Suspense fallback={<PageLoader />}>
