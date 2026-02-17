@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import App from './App';
 
@@ -15,21 +15,45 @@ vi.mock('@hello-world-co-op/auth', async (importOriginal) => {
   };
 });
 
+// Mock the ui package's SuiteSwitcher to avoid a dual auth@0.x module instance issue.
+// @hello-world-co-op/ui@0.2.1 bundles auth@0.2.2 as a nested dependency. SuiteSwitcher
+// calls useRoles() from that nested auth context, which is a different React context
+// instance than the AuthProvider from auth@0.3.x wrapping the app. This causes a
+// "useAuth must be used within an AuthProvider" error caught by ErrorBoundary.
+// The SuiteSwitcher itself is tested in the ui package — we just need a stable stub here.
+vi.mock('@hello-world-co-op/ui', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@hello-world-co-op/ui')>();
+  return {
+    ...actual,
+    SuiteSwitcher: () => <nav data-testid="suite-switcher" />,
+  };
+});
+
 describe('App', () => {
+  beforeEach(() => {
+    // Clear any ErrorBoundary state between tests
+    document.body.innerHTML = '';
+  });
+
   it('renders without crashing', async () => {
-    render(<App />);
+    const { container } = render(<App />);
     // Dashboard is lazy-loaded, wait for it
     await waitFor(() => {
-      expect(document.getElementById('root') || document.body).toBeTruthy();
+      expect(container.firstChild).toBeTruthy();
     });
   });
 
-  it('renders either the loading spinner or resolved content', () => {
+  it('renders without triggering an ErrorBoundary crash', async () => {
     render(<App />);
     // Lazy loading may show spinner (Suspense fallback) or resolve immediately in tests.
-    // Either state is valid — the key assertion is that the app mounts without error.
-    const spinner = document.querySelector('.animate-spin');
-    const body = document.body;
-    expect(spinner || body.children.length > 0).toBeTruthy();
+    // The key assertion is that the app mounts without triggering the ErrorBoundary fallback.
+    await waitFor(() => {
+      // ErrorBoundary fallback renders "Something went wrong" — this must NOT appear
+      const errorHeading = Array.from(document.querySelectorAll('h1')).find(
+        (el) => el.textContent === 'Something went wrong',
+      );
+      expect(errorHeading).toBeUndefined();
+      expect(document.body.children.length).toBeGreaterThan(0);
+    });
   });
 });
