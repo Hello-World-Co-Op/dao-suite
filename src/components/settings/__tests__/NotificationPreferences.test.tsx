@@ -244,6 +244,43 @@ describe('NotificationPreferences', () => {
     expect(screen.queryByTestId('migration-banner')).not.toBeInTheDocument();
   });
 
+  it('should call PUT API and hide banner when Sync is clicked on migration banner', async () => {
+    const localGovernancePrefs = {
+      enabled: false,
+      vote_result: false,
+      new_proposal: true,
+      voting_ending: false,
+      hideProposalTitles: false,
+      schemaVersion: 1,
+    };
+    localStorage.setItem('hwdao:notification-preferences-v1', JSON.stringify(localGovernancePrefs));
+
+    render(<NotificationPreferences />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('migration-banner')).toBeInTheDocument();
+    });
+
+    const syncButton = screen.getByTestId('migration-sync-btn');
+    fireEvent.click(syncButton);
+
+    await waitFor(() => {
+      expect(mockUpdatePreferences).toHaveBeenCalledWith(
+        expect.objectContaining({
+          in_app_toasts: false,
+          categories: expect.objectContaining({
+            proposals: true,
+            votes: false,
+          }),
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId('migration-banner')).not.toBeInTheDocument();
+    });
+  });
+
   it('should show push notifications toggle as disabled with Coming soon badge', async () => {
     render(<NotificationPreferences />);
 

@@ -280,17 +280,10 @@ export function NotificationPreferences(): React.ReactElement {
   }, [preferences]);
 
   // Category toggle handlers
-  const handleCategoryEmailChange = useCallback(
-    (category: keyof CanisterNotificationCategories) => (value: boolean) => {
-      setPreferences((prev) => ({
-        ...prev,
-        categories: { ...prev.categories, [category]: value },
-      }));
-    },
-    []
-  );
-
-  const handleCategoryInAppChange = useCallback(
+  // Note: the canister schema has one boolean per category (not separate email/in-app).
+  // Both email and in-app toggles in CategoryToggleRow map to the same categories[key] field.
+  // The master email_enabled and in_app_toasts toggles control per-channel behaviour globally.
+  const handleCategoryChange = useCallback(
     (category: keyof CanisterNotificationCategories) => (value: boolean) => {
       setPreferences((prev) => ({
         ...prev,
@@ -453,8 +446,8 @@ export function NotificationPreferences(): React.ReactElement {
               description={CATEGORY_DESCRIPTIONS[category]}
               emailEnabled={preferences.categories[category]}
               inAppEnabled={preferences.categories[category]}
-              onEmailChange={handleCategoryEmailChange(category)}
-              onInAppChange={handleCategoryInAppChange(category)}
+              onEmailChange={handleCategoryChange(category)}
+              onInAppChange={handleCategoryChange(category)}
               emailDisabled={!preferences.email_enabled}
             />
           ))}
