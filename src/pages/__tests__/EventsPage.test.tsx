@@ -301,6 +301,52 @@ describe('EventsPage', () => {
     });
   });
 
+  // AI-R120: Pagination escalation tests
+  it('shows pagination indicator when total exceeds displayed events', async () => {
+    const events = [createMockEvent({ id: 'evt-1', title: 'Event 1' })];
+    // total=150 but only 1 event returned (simulating page_size truncation)
+    mockListEvents.mockResolvedValue({ events, total: 150 });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('pagination-indicator')).toBeInTheDocument();
+    });
+
+    expect(screen.getByTestId('pagination-indicator')).toHaveTextContent(
+      'Showing 1 of 150 events'
+    );
+  });
+
+  it('hides pagination indicator when total equals events length', async () => {
+    const events = [createMockEvent()];
+    mockListEvents.mockResolvedValue({ events, total: 1 });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Page Test Event')).toBeInTheDocument();
+    });
+
+    expect(
+      screen.queryByTestId('pagination-indicator')
+    ).not.toBeInTheDocument();
+  });
+
+  it('hides pagination indicator when total is 0 (empty result)', async () => {
+    mockListEvents.mockResolvedValue({ events: [], total: 0 });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(mockListEvents).toHaveBeenCalled();
+    });
+
+    expect(
+      screen.queryByTestId('pagination-indicator')
+    ).not.toBeInTheDocument();
+  });
+
   it('API fetch error: shows error banner with Try again button', async () => {
     const user = userEvent.setup();
     mockListEvents.mockRejectedValueOnce(new Error('Network error'));

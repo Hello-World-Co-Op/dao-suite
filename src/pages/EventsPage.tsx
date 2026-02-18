@@ -27,6 +27,7 @@ export default function EventsPage() {
 
   // State
   const [events, setEvents] = useState<EventItem[]>([]);
+  const [totalEvents, setTotalEvents] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<'month' | 'list'>(() => {
@@ -48,6 +49,7 @@ export default function EventsPage() {
       to.setDate(to.getDate() + 90); // 90 days ahead
       const result = await listEvents(from.toISOString(), to.toISOString());
       setEvents(result.events);
+      setTotalEvents(result.total);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load events');
     } finally {
@@ -256,6 +258,16 @@ export default function EventsPage() {
             >
               Try again
             </button>
+          </div>
+        )}
+
+        {/* Pagination indicator (AI-R120) */}
+        {!loading && !error && totalEvents > events.length && (
+          <div
+            className="mb-4 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-md text-sm"
+            data-testid="pagination-indicator"
+          >
+            Showing {events.length} of {totalEvents} events. Some events may not be displayed.
           </div>
         )}
 
