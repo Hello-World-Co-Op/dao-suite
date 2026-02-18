@@ -437,7 +437,8 @@ export function getContactStatusColor(status: ContactStatus): string {
  * Generate initials from display name for avatar fallback
  * @param displayName - Display name
  */
-export function getInitials(displayName: string): string {
+export function getInitials(displayName: string | null | undefined): string {
+  if (!displayName) return '??';
   const parts = displayName.trim().split(/\s+/);
   if (parts.length >= 2) {
     return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();

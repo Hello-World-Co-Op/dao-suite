@@ -46,10 +46,10 @@ const SEARCH_DEBOUNCE_MS = 300;
 /** Oracle-bridge DirectoryEntry (snake_case from API) */
 interface DirectoryEntryResponse {
   principal: string;
-  display_name: string;
-  avatar?: string;
+  display_name: string | null;
+  avatar?: string | null;
   archetype: string;
-  bio?: string;
+  bio?: string | null;
   join_date: string;
   is_active: boolean;
 }
@@ -145,10 +145,10 @@ function log(level: 'info' | 'warn' | 'error', message: string, data?: Record<st
 function mapDirectoryEntry(entry: DirectoryEntryResponse): MemberProfile {
   return {
     principal: entry.principal,
-    displayName: entry.display_name,
-    avatar: entry.avatar,
+    displayName: entry.display_name || 'Anonymous Member',
+    avatar: entry.avatar ?? undefined,
     archetype: entry.archetype,
-    bio: entry.bio,
+    bio: entry.bio ?? undefined,
     joinDate: entry.join_date,
     isActive: entry.is_active,
   };
