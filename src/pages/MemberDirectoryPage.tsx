@@ -11,16 +11,16 @@
 
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '@hello-world-co-op/auth';
 import { ArrowLeft, Home, Users } from 'lucide-react';
 import { MemberDirectory } from '@/components/MemberDirectory';
+import { useMembership } from '@/hooks/useMembership';
 
 export default function MemberDirectoryPage() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { icPrincipal } = useMembership();
 
-  // Derive principal from user ID
-  const userPrincipal = user?.userId;
+  // Use IC principal for "You" indicator on member cards (BL-021.2 AC6)
+  const userPrincipal = icPrincipal ?? undefined;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-teal-50 to-blue-50 py-8 px-4">

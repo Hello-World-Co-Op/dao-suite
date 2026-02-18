@@ -2,10 +2,11 @@
  * Visibility Settings Component
  *
  * Allows users to control their profile visibility in the member directory.
- * Supports three visibility levels: public, members-only, and private.
+ * Supports three visibility levels: Public, MembersOnly, and Private.
+ * Calls oracle-bridge API to persist visibility setting.
  *
- * Story: 9-3-1-member-directory
- * AC: 5 - Profile visibility controls for own profile
+ * Story: 9-3-1-member-directory, BL-021.2
+ * AC: 9 - Profile visibility controls wired to real API
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -20,8 +21,41 @@ import {
   getVisibilityLabel,
   getVisibilityDescription,
 } from '@/stores';
+import { getOwnVisibility, setOwnVisibility } from '@/services/memberService';
 import { useStore } from '@nanostores/react';
 import { trackEvent } from '@/utils/analytics';
+
+/**
+ * Map oracle-bridge visibility string to local Visibility type.
+ */
+function toLocalVisibility(apiVisibility: string): Visibility {
+  switch (apiVisibility) {
+    case 'Public':
+      return 'public';
+    case 'MembersOnly':
+      return 'members-only';
+    case 'Private':
+      return 'private';
+    default:
+      return 'private';
+  }
+}
+
+/**
+ * Map local Visibility type to oracle-bridge API string.
+ */
+function toApiVisibility(local: Visibility): string {
+  switch (local) {
+    case 'public':
+      return 'Public';
+    case 'members-only':
+      return 'MembersOnly';
+    case 'private':
+      return 'Private';
+    default:
+      return 'Private';
+  }
+}
 
 // Visibility option configuration
 const VISIBILITY_OPTIONS: {
@@ -53,7 +87,7 @@ const VISIBILITY_OPTIONS: {
 export interface VisibilitySettingsProps {
   /** Optional class name for styling */
   className?: string;
-  /** User principal for canister calls */
+  /** User principal for analytics tracking */
   userPrincipal?: string;
 }
 
@@ -64,8 +98,35 @@ export function VisibilitySettings({
   const currentVisibility = useStore($userVisibility);
   const [selectedVisibility, setSelectedVisibility] = useState<Visibility>(currentVisibility);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingVisibility, setIsLoadingVisibility] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [hasChanges, setHasChanges] = useState(false);
+
+  // Load current visibility from oracle-bridge on mount
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoadingVisibility(true);
+
+    getOwnVisibility()
+      .then((result) => {
+        if (cancelled) return;
+        if (result.success && result.visibility) {
+          const localVis = toLocalVisibility(result.visibility);
+          setUserVisibility(localVis);
+          setSelectedVisibility(localVis);
+        }
+      })
+      .catch(() => {
+        // Silently fall back to local state
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoadingVisibility(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Sync selected with current when current changes
   useEffect(() => {
@@ -86,7 +147,7 @@ export function VisibilitySettings({
   }, []);
 
   /**
-   * Save visibility to canister
+   * Save visibility to oracle-bridge API
    */
   const handleSave = useCallback(async () => {
     if (!hasChanges) return;
@@ -95,24 +156,31 @@ export function VisibilitySettings({
     setMessage(null);
 
     try {
-      // TODO: When membership canister is extended, call:
-      // await membershipActor.set_my_visibility(selectedVisibility);
+      const apiVisibility = toApiVisibility(selectedVisibility);
+      const result = await setOwnVisibility(apiVisibility);
 
-      // For now, update local state (mock mode)
-      setUserVisibility(selectedVisibility);
+      if (result.success) {
+        // Update local state
+        setUserVisibility(selectedVisibility);
 
-      // Track analytics
-      trackEvent('visibility_settings_changed', {
-        previous_visibility: currentVisibility,
-        new_visibility: selectedVisibility,
-        user_principal: userPrincipal,
-      });
+        // Track analytics
+        trackEvent('visibility_settings_changed', {
+          previous_visibility: currentVisibility,
+          new_visibility: selectedVisibility,
+          user_principal: userPrincipal,
+        });
 
-      setMessage({
-        type: 'success',
-        text: `Profile visibility updated to "${getVisibilityLabel(selectedVisibility)}"`,
-      });
-      setHasChanges(false);
+        setMessage({
+          type: 'success',
+          text: `Profile visibility updated to "${getVisibilityLabel(selectedVisibility)}"`,
+        });
+        setHasChanges(false);
+      } else {
+        setMessage({
+          type: 'error',
+          text: result.error || 'Failed to update visibility',
+        });
+      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       setMessage({
@@ -152,6 +220,14 @@ export function VisibilitySettings({
             )}
             <AlertDescription>{message.text}</AlertDescription>
           </Alert>
+        )}
+
+        {/* Loading indicator for initial visibility fetch */}
+        {isLoadingVisibility && (
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading current visibility...
+          </div>
         )}
 
         {/* Current Status */}

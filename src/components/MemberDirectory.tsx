@@ -3,9 +3,10 @@
  *
  * Displays a directory of DAO members who have opted into visibility.
  * Includes search, pagination, member cards, and profile detail view.
+ * Data is fetched from oracle-bridge API endpoints.
  *
- * Story: 9-3-1-member-directory
- * ACs: 1, 2, 3
+ * Story: 9-3-1-member-directory, BL-021.2
+ * ACs: 1, 2, 3, 4, 5, 6, 7, 8
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
@@ -21,25 +22,15 @@ import {
   ChevronRight,
   Calendar,
   Shield,
-  Mail,
-  MessageCircle,
-  Eye,
-  EyeOff,
-  Check,
-  Clock,
-  XCircle,
   Settings,
 } from 'lucide-react';
 import {
   formatMemberSince,
   getArchetypeColor,
   getInitials,
-  getContactStatusColor,
   type MemberProfile,
-  type ContactStatus,
 } from '@/stores';
 import { useMemberDirectory } from '../services/memberService';
-import { useContactRequests } from '../services/contactService';
 import { trackEvent } from '../utils/analytics';
 
 // ============================================================================
@@ -142,7 +133,7 @@ function EmptyState({
         <Search className="h-12 w-12 text-gray-300 mb-4" aria-hidden="true" />
         <h3 className="text-lg font-medium text-gray-900 mb-2">No members found</h3>
         <p className="text-gray-500 text-sm mb-4">
-          No members match your search for "{searchQuery}"
+          No members match your search for &quot;{searchQuery}&quot;
         </p>
         {onClearSearch && (
           <button
@@ -259,21 +250,24 @@ function SearchInput({
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
-  onPageChange: (page: number) => void;
   onPrevPage: () => void;
   onNextPage: () => void;
+  hasMore?: boolean;
   isLoading?: boolean;
 }
 
 function Pagination({
   currentPage,
   totalPages,
-  onPageChange: _onPageChange,
   onPrevPage,
   onNextPage,
+  hasMore,
   isLoading,
 }: PaginationProps): React.ReactElement {
   if (totalPages <= 1) return <></>;
+
+  // Use hasMore from oracle-bridge if available, otherwise fall back to page calculation
+  const isNextDisabled = hasMore !== undefined ? !hasMore : currentPage >= totalPages - 1;
 
   return (
     <nav className="flex items-center justify-center gap-2" aria-label="Pagination">
@@ -301,7 +295,7 @@ function Pagination({
 
       <button
         onClick={onNextPage}
-        disabled={currentPage >= totalPages - 1 || isLoading}
+        disabled={isNextDisabled || isLoading}
         className="
           inline-flex items-center gap-1 px-3 py-2
           text-sm font-medium
@@ -363,23 +357,35 @@ function MemberAvatar({ member, size = 'md' }: MemberAvatarProps): React.ReactEl
 }
 
 // ============================================================================
+// Bio Snippet Helper
+// ============================================================================
+
+/**
+ * Truncate bio to maxLength characters, appending "..." if truncated.
+ */
+function truncateBio(bio: string | undefined, maxLength: number = 80): string | null {
+  if (!bio) return null;
+  if (bio.length <= maxLength) return bio;
+  return bio.substring(0, maxLength) + '...';
+}
+
+// ============================================================================
 // Member Card
 // ============================================================================
 
 interface MemberCardProps {
   member: MemberProfile;
   onClick: () => void;
-  contactStatus?: ContactStatus | null;
   isCurrentUser?: boolean;
 }
 
 function MemberCard({
   member,
   onClick,
-  contactStatus,
   isCurrentUser,
 }: MemberCardProps): React.ReactElement {
   const archetypeColorClass = member.archetype ? getArchetypeColor(member.archetype) : '';
+  const bioSnippet = truncateBio(member.bio, 80);
 
   return (
     <button
@@ -398,11 +404,13 @@ function MemberCard({
         <div className="flex-1 min-w-0">
           <h3 className="font-medium text-gray-900 truncate">
             {member.displayName}
-            {isCurrentUser && <span className="ml-2 text-xs text-teal-600">(You)</span>}
+            {isCurrentUser && (
+              <span className="ml-2 text-xs font-semibold text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded">You</span>
+            )}
           </h3>
           <p className="text-sm text-gray-500 flex items-center gap-1">
             <Calendar className="h-3.5 w-3.5" />
-            Member since {formatMemberSince(member.memberSince)}
+            {formatMemberSince(member.joinDate)}
           </p>
         </div>
       </div>
@@ -421,24 +429,24 @@ function MemberCard({
         </span>
       )}
 
-      {/* Bio snippet */}
-      {member.bio && <p className="text-sm text-gray-600 line-clamp-2 mb-2">{member.bio}</p>}
+      {/* Bio snippet (truncated at 80 chars) */}
+      {bioSnippet && <p className="text-sm text-gray-600 line-clamp-2 mb-2">{bioSnippet}</p>}
 
-      {/* Contact status indicator */}
-      {contactStatus && !isCurrentUser && (
-        <div
-          className={`
-          inline-flex items-center gap-1 px-2 py-1
-          text-xs font-medium rounded-full
-          ${getContactStatusColor(contactStatus)}
-        `}
-        >
-          {contactStatus === 'pending' && <Clock className="h-3 w-3" />}
-          {contactStatus === 'approved' && <Check className="h-3 w-3" />}
-          {contactStatus === 'rejected' && <XCircle className="h-3 w-3" />}
-          {contactStatus.charAt(0).toUpperCase() + contactStatus.slice(1)}
-        </div>
-      )}
+      {/* Contact button — disabled with "Coming soon" tooltip */}
+      <button
+        disabled
+        title="Contact requests coming soon"
+        aria-disabled="true"
+        className="
+          mt-2 inline-flex items-center gap-1 px-2 py-1
+          text-xs font-medium text-gray-400
+          bg-gray-100 rounded
+          opacity-50 cursor-not-allowed
+        "
+        onClick={(e) => e.stopPropagation()}
+      >
+        Contact
+      </button>
     </button>
   );
 }
@@ -450,16 +458,12 @@ function MemberCard({
 interface MemberDetailProps {
   member: MemberProfile;
   onClose: () => void;
-  onContact?: () => void;
-  contactStatus?: ContactStatus | null;
   isCurrentUser?: boolean;
 }
 
 function MemberDetail({
   member,
   onClose,
-  onContact,
-  contactStatus,
   isCurrentUser,
 }: MemberDetailProps): React.ReactElement {
   const archetypeColorClass = member.archetype ? getArchetypeColor(member.archetype) : '';
@@ -489,7 +493,7 @@ function MemberDetail({
               </h2>
               <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
                 <Calendar className="h-4 w-4" />
-                Member since {formatMemberSince(member.memberSince)}
+                {formatMemberSince(member.joinDate)}
               </p>
               {member.archetype && (
                 <span
@@ -520,28 +524,13 @@ function MemberDetail({
 
         {/* Body */}
         <div className="p-6 space-y-4">
-          {/* Bio */}
+          {/* Full bio */}
           {member.bio && (
             <div>
               <h3 className="text-sm font-medium text-gray-700 mb-1">About</h3>
               <p className="text-gray-600">{member.bio}</p>
             </div>
           )}
-
-          {/* Visibility */}
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            {member.visibility === 'public' ? (
-              <>
-                <Eye className="h-4 w-4" />
-                Public profile
-              </>
-            ) : (
-              <>
-                <EyeOff className="h-4 w-4" />
-                Members only
-              </>
-            )}
-          </div>
 
           {/* Edit Profile for own profile */}
           {isCurrentUser && (
@@ -563,187 +552,26 @@ function MemberDetail({
             </div>
           )}
 
-          {/* Contact status or action */}
+          {/* Contact button — disabled with "Coming soon" tooltip */}
           {!isCurrentUser && (
             <div className="pt-4 border-t border-gray-100">
-              {contactStatus === 'approved' ? (
-                <div className="flex items-center gap-2 text-green-600">
-                  <Check className="h-5 w-5" />
-                  <span className="font-medium">Connected</span>
-                </div>
-              ) : contactStatus === 'pending' ? (
-                <div className="flex items-center gap-2 text-yellow-600">
-                  <Clock className="h-5 w-5" />
-                  <span className="font-medium">Contact request pending</span>
-                </div>
-              ) : contactStatus === 'rejected' ? (
-                <div className="flex items-center gap-2 text-gray-500">
-                  <XCircle className="h-5 w-5" />
-                  <span className="font-medium">Contact request declined</span>
-                </div>
-              ) : (
-                <button
-                  onClick={onContact}
-                  className="
-                    w-full inline-flex items-center justify-center gap-2 px-4 py-2
-                    text-sm font-medium text-white
-                    bg-teal-600 hover:bg-teal-700
-                    rounded-md
-                    focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2
-                    transition-colors duration-150
-                  "
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  Send Contact Request
-                </button>
-              )}
+              <button
+                disabled
+                title="Contact requests coming soon"
+                aria-disabled="true"
+                className="
+                  w-full inline-flex items-center justify-center gap-2 px-4 py-2
+                  text-sm font-medium text-gray-400
+                  bg-gray-100 rounded-md
+                  opacity-50 cursor-not-allowed
+                "
+              >
+                Send Contact Request
+              </button>
+              <p className="text-xs text-gray-400 text-center mt-1">Coming soon</p>
             </div>
           )}
         </div>
-      </div>
-    </div>
-  );
-}
-
-// ============================================================================
-// Contact Request Modal
-// ============================================================================
-
-interface ContactRequestModalProps {
-  recipientName: string;
-  onSend: (message: string) => Promise<void>;
-  onClose: () => void;
-  isSending: boolean;
-}
-
-function ContactRequestModal({
-  recipientName,
-  onSend,
-  onClose,
-  isSending,
-}: ContactRequestModalProps): React.ReactElement {
-  const [message, setMessage] = useState('');
-  const maxLength = 500;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (message.trim()) {
-      await onSend(message.trim());
-    }
-  };
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="contact-modal-title"
-    >
-      <div
-        className="bg-white rounded-xl shadow-xl max-w-md w-full"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-6 border-b border-gray-100">
-          <div className="flex items-center justify-between">
-            <h2 id="contact-modal-title" className="text-lg font-semibold text-gray-900">
-              Contact {recipientName}
-            </h2>
-            <button
-              onClick={onClose}
-              disabled={isSending}
-              className="
-                p-2 text-gray-400 hover:text-gray-600
-                rounded-full hover:bg-gray-100
-                focus:outline-none focus:ring-2 focus:ring-teal-500
-                disabled:opacity-50
-              "
-              aria-label="Close"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          <div>
-            <label
-              htmlFor="contact-message"
-              className="block text-sm font-medium text-gray-700 mb-1"
-            >
-              Introduce yourself
-            </label>
-            <textarea
-              id="contact-message"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Hi! I'd like to connect with you about..."
-              maxLength={maxLength}
-              rows={4}
-              className="
-                w-full px-3 py-2
-                text-sm
-                border border-gray-300 rounded-lg
-                focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500
-                placeholder:text-gray-400
-                resize-none
-              "
-              disabled={isSending}
-            />
-            <p className="text-xs text-gray-500 mt-1 text-right">
-              {message.length}/{maxLength}
-            </p>
-          </div>
-
-          <p className="text-sm text-gray-500">
-            Your message will be sent as a contact request. {recipientName} can choose to accept or
-            decline.
-          </p>
-
-          <div className="flex gap-3 justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSending}
-              className="
-                px-4 py-2
-                text-sm font-medium text-gray-700
-                bg-gray-100 hover:bg-gray-200
-                rounded-md
-                focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2
-                disabled:opacity-50
-                transition-colors duration-150
-              "
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!message.trim() || isSending}
-              className="
-                inline-flex items-center gap-2 px-4 py-2
-                text-sm font-medium text-white
-                bg-teal-600 hover:bg-teal-700
-                rounded-md
-                focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2
-                disabled:opacity-50 disabled:cursor-not-allowed
-                transition-colors duration-150
-              "
-            >
-              {isSending ? (
-                <>
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Mail className="h-4 w-4" />
-                  Send Request
-                </>
-              )}
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   );
@@ -754,7 +582,7 @@ function ContactRequestModal({
 // ============================================================================
 
 export interface MemberDirectoryProps {
-  /** Current user's principal (for identifying own profile) */
+  /** Current user's IC principal (for identifying own profile via "You" badge) */
   userPrincipal?: string;
   /** Additional CSS class */
   className?: string;
@@ -772,27 +600,16 @@ export function MemberDirectory({
     selectedMember,
     currentPage,
     totalPages,
+    hasMore,
     isLoading,
     isRefreshing,
     refresh,
-    goToPage,
     nextPage,
     prevPage,
     setSearch,
     clearSearch,
     selectMember,
   } = useMemberDirectory();
-
-  // Contact requests hook
-  const {
-    isModalOpen: isContactModalOpen,
-    recipientPrincipal,
-    isSending,
-    getStatusFor,
-    openModal: openContactModal,
-    closeModal: closeContactModal,
-    send: sendContactRequest,
-  } = useContactRequests({ userPrincipal });
 
   // Track when component loads
   const hasTrackedLoad = useRef(false);
@@ -829,25 +646,6 @@ export function MemberDirectory({
     },
     [selectMember]
   );
-
-  // Handle contact request
-  const handleContactRequest = useCallback(() => {
-    if (selectedMember) {
-      openContactModal(selectedMember.principal);
-    }
-  }, [selectedMember, openContactModal]);
-
-  // Handle send contact request
-  const handleSendContact = useCallback(
-    async (message: string) => {
-      await sendContactRequest(message);
-      // Modal closes automatically on success
-    },
-    [sendContactRequest]
-  );
-
-  // Get recipient name for modal
-  const recipientMember = filteredMembers.find((m) => m.principal === recipientPrincipal);
 
   // Loading state
   if (isLoading && !memberState.lastUpdated) {
@@ -933,8 +731,7 @@ export function MemberDirectory({
                 key={member.principal}
                 member={member}
                 onClick={() => handleMemberClick(member)}
-                contactStatus={getStatusFor(member.principal)}
-                isCurrentUser={member.principal === userPrincipal}
+                isCurrentUser={userPrincipal != null && member.principal === userPrincipal}
               />
             ))}
           </div>
@@ -943,9 +740,9 @@ export function MemberDirectory({
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
-            onPageChange={goToPage}
             onPrevPage={prevPage}
             onNextPage={nextPage}
+            hasMore={hasMore}
             isLoading={isLoading}
           />
         </>
@@ -956,19 +753,7 @@ export function MemberDirectory({
         <MemberDetail
           member={selectedMember}
           onClose={() => selectMember(null)}
-          onContact={handleContactRequest}
-          contactStatus={getStatusFor(selectedMember.principal)}
-          isCurrentUser={selectedMember.principal === userPrincipal}
-        />
-      )}
-
-      {/* Contact request modal */}
-      {isContactModalOpen && recipientMember && (
-        <ContactRequestModal
-          recipientName={recipientMember.displayName}
-          onSend={handleSendContact}
-          onClose={closeContactModal}
-          isSending={isSending}
+          isCurrentUser={userPrincipal != null && selectedMember.principal === userPrincipal}
         />
       )}
     </div>

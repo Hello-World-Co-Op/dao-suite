@@ -1,14 +1,12 @@
 /**
  * Member Directory Service
  *
- * Service for querying member data from the membership canister.
+ * Service for querying member data via oracle-bridge proxy.
+ * All canister calls go through oracle-bridge — no direct IC agent usage.
  * Provides hooks for React component integration.
  *
- * Story: 9-3-1-member-directory
- * ACs: 1, 2, 3
- *
- * NOTE: Membership canister lacks display name, avatar, archetype, and visibility
- * fields. This implementation uses mock data until canister is extended.
+ * Story: BL-021.2
+ * ACs: 1, 4, 5, 9
  */
 
 import { useEffect, useCallback, useState, useRef } from 'react';
@@ -38,18 +36,6 @@ import {
 // Configuration
 // ============================================================================
 
-/** Membership canister ID */
-const MEMBERSHIP_CANISTER_ID = import.meta.env.VITE_MEMBERSHIP_CANISTER_ID || '';
-
-/** Initial backoff delay for retries (1 second) */
-const INITIAL_BACKOFF_MS = 1000;
-
-/** Maximum backoff delay (30 seconds) */
-const MAX_BACKOFF_MS = 30000;
-
-/** Maximum retry attempts for queries */
-const MAX_RETRY_ATTEMPTS = 3;
-
 /** Debounce delay for search (300ms) */
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -57,10 +43,36 @@ const SEARCH_DEBOUNCE_MS = 300;
 // Types
 // ============================================================================
 
+/** Oracle-bridge DirectoryEntry (snake_case from API) */
+interface DirectoryEntryResponse {
+  principal: string;
+  display_name: string;
+  avatar?: string;
+  archetype: string;
+  bio?: string;
+  join_date: string;
+  is_active: boolean;
+}
+
+/** Oracle-bridge directory response shape */
+interface DirectoryResponse {
+  entries: DirectoryEntryResponse[];
+  total_count: number;
+  page: number;
+  page_size: number;
+  has_more: boolean;
+}
+
+/** Oracle-bridge visibility response */
+interface VisibilityResponse {
+  visibility: 'Public' | 'MembersOnly' | 'Private';
+}
+
 export interface FetchMembersResult {
   success: boolean;
   members?: MemberProfile[];
   totalCount?: number;
+  hasMore?: boolean;
   error?: string;
 }
 
@@ -70,15 +82,40 @@ export interface FetchMemberProfileResult {
   error?: string;
 }
 
+export interface UpdateProfileData {
+  display_name?: string;
+  avatar?: string;
+  archetype?: string;
+  bio?: string;
+}
+
+export interface UpdateProfileResult {
+  success: boolean;
+  error?: string;
+}
+
+export interface VisibilityResult {
+  success: boolean;
+  visibility?: string;
+  error?: string;
+}
+
 // ============================================================================
 // Helpers
 // ============================================================================
 
 /**
- * Check if we're in mock/development mode
+ * Get oracle-bridge base URL.
+ * Same pattern as Settings.tsx — reads env var or defaults.
  */
-function isMockMode(): boolean {
-  return !MEMBERSHIP_CANISTER_ID || import.meta.env.DEV;
+export function getOracleBridgeUrl(): string {
+  if (import.meta.env.VITE_ORACLE_BRIDGE_URL) {
+    return import.meta.env.VITE_ORACLE_BRIDGE_URL;
+  }
+  if (import.meta.env.PROD) {
+    return ''; // Same-origin in production (IC asset canister)
+  }
+  return 'http://localhost:3000';
 }
 
 /**
@@ -103,192 +140,202 @@ function log(level: 'info' | 'warn' | 'error', message: string, data?: Record<st
 }
 
 /**
- * Calculate exponential backoff delay
+ * Map oracle-bridge snake_case DirectoryEntry to MemberProfile (camelCase).
  */
-function getBackoffDelay(attempt: number): number {
-  const delay = INITIAL_BACKOFF_MS * Math.pow(2, attempt);
-  return Math.min(delay, MAX_BACKOFF_MS);
-}
-
-/**
- * Sleep for specified milliseconds
- */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// ============================================================================
-// Mock Implementation
-// ============================================================================
-
-/**
- * Get mock members — empty until canister integration
- */
-function getMockMembers(): MemberProfile[] {
-  return [];
-}
-
-/**
- * Mock: List visible members with pagination
- */
-async function mockListMembers(
-  page: number = 0,
-  perPage: number = MEMBERS_PER_PAGE
-): Promise<FetchMembersResult> {
-  log('info', 'Mock members fetch', { page, perPage });
-
-  // Simulate network delay
-  await sleep(300 + Math.random() * 200);
-
-  const allMembers = getMockMembers();
-  const start = page * perPage;
-  const end = start + perPage;
-  const paginatedMembers = allMembers.slice(start, end);
-
+function mapDirectoryEntry(entry: DirectoryEntryResponse): MemberProfile {
   return {
-    success: true,
-    members: paginatedMembers,
-    totalCount: allMembers.length,
+    principal: entry.principal,
+    displayName: entry.display_name,
+    avatar: entry.avatar,
+    archetype: entry.archetype,
+    bio: entry.bio,
+    joinDate: entry.join_date,
+    isActive: entry.is_active,
   };
 }
 
+// ============================================================================
+// Public API — Oracle-Bridge Fetch Functions
+// ============================================================================
+
 /**
- * Mock: Get member profile by principal
+ * Fetch visible members from oracle-bridge (paginated, with optional search).
+ * Oracle-bridge pages are 1-indexed. The store uses 0-indexed pages internally,
+ * so we convert: store page 0 = API page 1.
  */
-async function mockGetMemberProfile(principal: string): Promise<FetchMemberProfileResult> {
-  log('info', 'Mock member profile fetch', { principal });
-
-  // Simulate network delay
-  await sleep(200 + Math.random() * 100);
-
-  const allMembers = getMockMembers();
-  const member = allMembers.find((m) => m.principal === principal);
-
-  if (member) {
-    return { success: true, member };
+export async function fetchMembers(
+  page: number = 1,
+  pageSize: number = MEMBERS_PER_PAGE,
+  search?: string
+): Promise<FetchMembersResult> {
+  const baseUrl = getOracleBridgeUrl();
+  const params = new URLSearchParams({
+    page: String(page),
+    page_size: String(pageSize),
+  });
+  if (search && search.trim()) {
+    params.set('search', search.trim());
   }
 
-  return { success: false, error: 'Member not found' };
-}
-
-// ============================================================================
-// Canister Implementation (Placeholder)
-// ============================================================================
-
-/**
- * List visible members from canister with pagination
- *
- * NOTE: The membership canister currently only has get_active_members() which
- * returns principals, not full profile data. Extended endpoints needed.
- */
-async function canisterListMembers(
-  page: number = 0,
-  perPage: number = MEMBERS_PER_PAGE,
-  attempt: number = 0
-): Promise<FetchMembersResult> {
-  log('info', 'Fetching members from canister', { page, perPage, attempt });
+  const url = `${baseUrl}/api/members/directory?${params.toString()}`;
+  log('info', 'Fetching members from oracle-bridge', { url, page, pageSize, search });
 
   try {
-    // TODO: When membership canister is extended with profile data:
-    // 1. Create HttpAgent and Actor
-    // 2. Call list_visible_members({ page, per_page })
-    // 3. Transform response to MemberProfile[]
+    const response = await fetch(url, { credentials: 'include' });
 
-    // For now, fall back to mock data
-    log('warn', 'Canister not available, using mock data');
-    return mockListMembers(page, perPage);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    log('error', 'Canister list members failed', { error: errorMessage, attempt });
-
-    // Retry with exponential backoff
-    if (attempt < MAX_RETRY_ATTEMPTS - 1) {
-      const delay = getBackoffDelay(attempt);
-      log('info', 'Retrying list members', { attempt: attempt + 1, delay });
-      await sleep(delay);
-      return canisterListMembers(page, perPage, attempt + 1);
+    if (response.status === 401) {
+      return { success: false, error: 'Authentication required' };
     }
 
+    if (!response.ok) {
+      const text = await response.text();
+      return { success: false, error: `Server error: ${response.status} ${text}` };
+    }
+
+    const data: DirectoryResponse = await response.json();
+    const members = data.entries.map(mapDirectoryEntry);
+
+    return {
+      success: true,
+      members,
+      totalCount: data.total_count,
+      hasMore: data.has_more,
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    log('error', 'Failed to fetch members', { error: errorMessage });
     return { success: false, error: errorMessage };
   }
 }
 
 /**
- * Get member profile from canister
+ * Fetch a single member profile by principal.
  */
-async function canisterGetMemberProfile(
-  principal: string,
-  attempt: number = 0
-): Promise<FetchMemberProfileResult> {
-  log('info', 'Fetching member profile from canister', { principal, attempt });
+export async function fetchMemberProfile(principal: string): Promise<FetchMemberProfileResult> {
+  const baseUrl = getOracleBridgeUrl();
+  const url = `${baseUrl}/api/members/profile/${encodeURIComponent(principal)}`;
+  log('info', 'Fetching member profile', { principal });
 
   try {
-    // TODO: When membership canister is extended:
-    // 1. Create HttpAgent and Actor
-    // 2. Call get_member_profile(principal)
-    // 3. Transform response to MemberProfile
+    const response = await fetch(url, { credentials: 'include' });
 
-    // For now, fall back to mock data
-    log('warn', 'Canister not available, using mock data');
-    return mockGetMemberProfile(principal);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    log('error', 'Canister get member profile failed', { error: errorMessage, attempt });
-
-    // Retry with exponential backoff
-    if (attempt < MAX_RETRY_ATTEMPTS - 1) {
-      const delay = getBackoffDelay(attempt);
-      log('info', 'Retrying get member profile', { attempt: attempt + 1, delay });
-      await sleep(delay);
-      return canisterGetMemberProfile(principal, attempt + 1);
+    if (response.status === 404) {
+      return { success: false, error: 'Member not found' };
     }
 
+    if (response.status === 401) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    if (!response.ok) {
+      const text = await response.text();
+      return { success: false, error: `Server error: ${response.status} ${text}` };
+    }
+
+    const data: DirectoryEntryResponse = await response.json();
+    return { success: true, member: mapDirectoryEntry(data) };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    log('error', 'Failed to fetch member profile', { error: errorMessage });
     return { success: false, error: errorMessage };
   }
 }
 
-// ============================================================================
-// Public API
-// ============================================================================
-
 /**
- * Fetch visible members (paginated)
+ * Update own profile via oracle-bridge.
  */
-export async function getVisibleMembers(
-  page: number = 0,
-  perPage: number = MEMBERS_PER_PAGE
-): Promise<FetchMembersResult> {
-  if (isMockMode()) {
-    return mockListMembers(page, perPage);
+export async function updateOwnProfile(data: UpdateProfileData): Promise<UpdateProfileResult> {
+  const baseUrl = getOracleBridgeUrl();
+  const url = `${baseUrl}/api/members/profile`;
+  log('info', 'Updating own profile', { data });
+
+  try {
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data),
+    });
+
+    if (response.status === 401) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    if (!response.ok) {
+      const text = await response.text();
+      return { success: false, error: `Server error: ${response.status} ${text}` };
+    }
+
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    log('error', 'Failed to update profile', { error: errorMessage });
+    return { success: false, error: errorMessage };
   }
-  return canisterListMembers(page, perPage);
 }
 
 /**
- * Fetch member profile by principal
+ * Get own visibility setting from oracle-bridge.
  */
-export async function getMemberProfile(principal: string): Promise<FetchMemberProfileResult> {
-  if (isMockMode()) {
-    return mockGetMemberProfile(principal);
+export async function getOwnVisibility(): Promise<VisibilityResult> {
+  const baseUrl = getOracleBridgeUrl();
+  const url = `${baseUrl}/api/members/visibility`;
+  log('info', 'Fetching own visibility');
+
+  try {
+    const response = await fetch(url, { credentials: 'include' });
+
+    if (response.status === 401) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    if (!response.ok) {
+      const text = await response.text();
+      return { success: false, error: `Server error: ${response.status} ${text}` };
+    }
+
+    const data: VisibilityResponse = await response.json();
+    return { success: true, visibility: data.visibility };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    log('error', 'Failed to fetch visibility', { error: errorMessage });
+    return { success: false, error: errorMessage };
   }
-  return canisterGetMemberProfile(principal);
 }
 
 /**
- * Search members by name (client-side filtering)
+ * Set own visibility via oracle-bridge.
  */
-export function searchMembers(members: MemberProfile[], query: string): MemberProfile[] {
-  if (!query.trim()) {
-    return members;
-  }
+export async function setOwnVisibility(
+  visibility: string
+): Promise<{ success: boolean; error?: string }> {
+  const baseUrl = getOracleBridgeUrl();
+  const url = `${baseUrl}/api/members/visibility`;
+  log('info', 'Setting own visibility', { visibility });
 
-  const lowerQuery = query.toLowerCase().trim();
-  return members.filter(
-    (member) =>
-      member.displayName.toLowerCase().includes(lowerQuery) ||
-      member.archetype?.toLowerCase().includes(lowerQuery) ||
-      member.bio?.toLowerCase().includes(lowerQuery)
-  );
+  try {
+    const response = await fetch(url, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ visibility }),
+    });
+
+    if (response.status === 401) {
+      return { success: false, error: 'Authentication required' };
+    }
+
+    if (!response.ok) {
+      const text = await response.text();
+      return { success: false, error: `Server error: ${response.status} ${text}` };
+    }
+
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    log('error', 'Failed to set visibility', { error: errorMessage });
+    return { success: false, error: errorMessage };
+  }
 }
 
 // ============================================================================
@@ -313,23 +360,25 @@ export interface UseMemberDirectoryResult {
   searchQuery: string;
   /** Selected member for detail view */
   selectedMember: MemberProfile | null;
-  /** Current page (0-indexed) */
+  /** Current page (0-indexed internally) */
   currentPage: number;
   /** Total pages */
   totalPages: number;
+  /** Whether there are more pages (from oracle-bridge has_more) */
+  hasMore: boolean;
   /** Is loading state */
   isLoading: boolean;
   /** Is refreshing (loading after initial fetch) */
   isRefreshing: boolean;
   /** Refresh member data */
   refresh: () => Promise<void>;
-  /** Go to specific page */
+  /** Go to specific page (0-indexed) */
   goToPage: (page: number) => Promise<void>;
   /** Go to next page */
   nextPage: () => Promise<void>;
   /** Go to previous page */
   prevPage: () => Promise<void>;
-  /** Set search query (debounced) */
+  /** Set search query (debounced, triggers server-side search) */
   setSearch: (query: string) => void;
   /** Clear search */
   clearSearch: () => void;
@@ -340,7 +389,8 @@ export interface UseMemberDirectoryResult {
 }
 
 /**
- * Hook for member directory component integration
+ * Hook for member directory component integration.
+ * Fetches data from oracle-bridge API with pagination and search.
  */
 export function useMemberDirectory(
   options: UseMemberDirectoryOptions = {}
@@ -356,8 +406,9 @@ export function useMemberDirectory(
   const currentPageValue = useStore($currentPage);
   const totalPagesValue = useStore($totalPages);
 
-  // Local state for refreshing indicator
+  // Local state
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
 
   // Debounce timeout ref for search
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -366,63 +417,68 @@ export function useMemberDirectory(
   const initialFetchDone = useRef(false);
 
   /**
-   * Fetch members for current page
+   * Load members for a given page with current search query.
+   * Converts 0-indexed store page to 1-indexed API page.
    */
-  const fetchMembers = useCallback(
-    async (page: number = currentPageValue, isRefresh: boolean = false) => {
+  const loadMembers = useCallback(
+    async (storePage: number = 0, isRefresh: boolean = false, search?: string) => {
       if (isRefresh) {
         setIsRefreshing(true);
       } else {
         setMemberLoading(true);
       }
 
-      log('info', 'Fetching members', { page, isRefresh });
+      const apiPage = storePage + 1; // oracle-bridge is 1-indexed
+      log('info', 'Loading members', { storePage, apiPage, isRefresh, search });
 
       try {
-        const result = await getVisibleMembers(page, MEMBERS_PER_PAGE);
+        const result = await fetchMembers(apiPage, MEMBERS_PER_PAGE, search);
 
         if (result.success && result.members) {
           setMembers(result.members, result.totalCount);
-          setCurrentPage(page);
-          log('info', 'Members fetched successfully', {
+          setCurrentPage(storePage);
+          setHasMore(result.hasMore ?? false);
+          log('info', 'Members loaded successfully', {
             count: result.members.length,
             totalCount: result.totalCount,
-            page,
+            storePage,
           });
         } else {
           setMemberError(result.error || 'Failed to fetch members');
-          log('error', 'Failed to fetch members', { error: result.error });
+          log('error', 'Failed to load members', { error: result.error });
         }
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         setMemberError(errorMessage);
-        log('error', 'Exception during member fetch', { error: errorMessage });
+        log('error', 'Exception during member load', { error: errorMessage });
       } finally {
         if (isRefresh) {
           setIsRefreshing(false);
         }
       }
     },
-    [currentPageValue]
+    []
   );
 
   /**
-   * Refresh member data
+   * Refresh member data (resets to page 0)
    */
   const refresh = useCallback(async () => {
-    await fetchMembers(0, true);
-  }, [fetchMembers]);
+    const currentSearch = $memberSearchQuery.get();
+    await loadMembers(0, true, currentSearch || undefined);
+  }, [loadMembers]);
 
   /**
-   * Go to specific page
+   * Go to specific page (0-indexed)
    */
   const goToPage = useCallback(
     async (page: number) => {
       if (page >= 0 && page < totalPagesValue) {
-        await fetchMembers(page);
+        const currentSearch = $memberSearchQuery.get();
+        await loadMembers(page, false, currentSearch || undefined);
       }
     },
-    [fetchMembers, totalPagesValue]
+    [loadMembers, totalPagesValue]
   );
 
   /**
@@ -430,33 +486,41 @@ export function useMemberDirectory(
    */
   const nextPage = useCallback(async () => {
     if (currentPageValue < totalPagesValue - 1) {
-      await fetchMembers(currentPageValue + 1);
+      const currentSearch = $memberSearchQuery.get();
+      await loadMembers(currentPageValue + 1, false, currentSearch || undefined);
     }
-  }, [fetchMembers, currentPageValue, totalPagesValue]);
+  }, [loadMembers, currentPageValue, totalPagesValue]);
 
   /**
    * Go to previous page
    */
   const prevPage = useCallback(async () => {
     if (currentPageValue > 0) {
-      await fetchMembers(currentPageValue - 1);
+      const currentSearch = $memberSearchQuery.get();
+      await loadMembers(currentPageValue - 1, false, currentSearch || undefined);
     }
-  }, [fetchMembers, currentPageValue]);
+  }, [loadMembers, currentPageValue]);
 
   /**
-   * Set search query with debounce
+   * Set search query with debounce.
+   * After debounce, triggers a server-side fetch with the search param.
    */
-  const setSearch = useCallback((query: string) => {
-    // Cancel previous timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
+  const setSearch = useCallback(
+    (query: string) => {
+      // Cancel previous timeout
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
 
-    // Debounce the search
-    searchTimeoutRef.current = setTimeout(() => {
-      setMemberSearchQuery(query);
-    }, SEARCH_DEBOUNCE_MS);
-  }, []);
+      // Debounce the search (300ms)
+      searchTimeoutRef.current = setTimeout(() => {
+        setMemberSearchQuery(query);
+        // Trigger server-side search by reloading page 0
+        loadMembers(0, false, query || undefined);
+      }, SEARCH_DEBOUNCE_MS);
+    },
+    [loadMembers]
+  );
 
   /**
    * Clear search
@@ -466,7 +530,9 @@ export function useMemberDirectory(
       clearTimeout(searchTimeoutRef.current);
     }
     setMemberSearchQuery('');
-  }, []);
+    // Reload without search
+    loadMembers(0, false, undefined);
+  }, [loadMembers]);
 
   /**
    * Select member for detail view
@@ -489,10 +555,10 @@ export function useMemberDirectory(
 
       if (shouldFetch) {
         initialFetchDone.current = true;
-        fetchMembers(0);
+        loadMembers(0);
       }
     }
-  }, [autoFetch, refetchIfStale, memberState.lastUpdated, fetchMembers]);
+  }, [autoFetch, refetchIfStale, memberState.lastUpdated, loadMembers]);
 
   // Cleanup debounce timeout on unmount
   useEffect(() => {
@@ -511,6 +577,7 @@ export function useMemberDirectory(
     selectedMember,
     currentPage: currentPageValue,
     totalPages: totalPagesValue,
+    hasMore,
     isLoading: memberState.isLoading,
     isRefreshing,
     refresh,

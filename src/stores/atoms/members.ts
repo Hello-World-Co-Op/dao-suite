@@ -4,11 +4,10 @@
  * Manages member directory state using nanostores.
  * Follows the escrow.ts pattern for state management.
  *
- * Story: 9-3-1-member-directory
+ * Story: 9-3-1-member-directory, BL-021.2
  * ACs: 1, 2, 3
  *
- * NOTE: Membership canister lacks display name, avatar, archetype, and visibility
- * fields. This implementation uses mock data until canister is extended.
+ * Data is fetched from oracle-bridge which proxies the membership canister.
  */
 
 import { atom, computed } from 'nanostores';
@@ -34,24 +33,24 @@ export type Visibility = 'public' | 'members-only' | 'private';
 export type Archetype = 'Builder' | 'Guardian' | 'Visionary' | 'Connector' | 'Steward';
 
 /**
- * Member profile (extended beyond canister data for directory)
+ * Member profile — matches oracle-bridge DirectoryEntry response shape.
+ * Fields use camelCase in the frontend; mapping from oracle-bridge
+ * snake_case happens in memberService.ts.
  */
 export interface MemberProfile {
-  /** Member's principal ID */
+  /** Member's IC principal as text */
   principal: string;
-  /** Display name (not in canister yet) */
+  /** Display name (max 50 chars) */
   displayName: string;
-  /** Avatar URL (not in canister yet) */
+  /** Avatar URL (https:// URL or undefined) */
   avatar?: string;
-  /** Join date timestamp in nanoseconds */
-  memberSince: bigint;
-  /** Member archetype - evolves through Otter Camp gameplay (not user-selected) */
-  archetype?: Archetype;
-  /** Visibility setting (not in canister yet) */
-  visibility: Visibility;
+  /** ISO 8601 join date string (converted from nat64 nanoseconds by oracle-bridge) */
+  joinDate: string;
+  /** Member archetype — plain string from oracle-bridge (e.g. "Builder", "Guardian") */
+  archetype: string;
   /** Whether membership is currently active */
   isActive: boolean;
-  /** Bio/description (not in canister yet) */
+  /** Bio/description (max 280 chars or undefined) */
   bio?: string;
 }
 
@@ -187,21 +186,16 @@ export const $totalPages = computed($memberDirectory, (state) =>
 );
 
 /**
- * Filtered members based on search query
+ * Filtered members based on search query (client-side filtering for current page).
+ * Note: Server-side search is done via the `search` query param in fetchMembers.
+ * This computed is kept for backward compatibility but primary search is server-side.
  */
 export const $filteredMembers = computed(
   [$memberDirectory, $memberSearchQuery],
-  (state, query) => {
-    if (!query.trim()) {
-      return state.members;
-    }
-    const lowerQuery = query.toLowerCase().trim();
-    return state.members.filter(
-      (member) =>
-        member.displayName.toLowerCase().includes(lowerQuery) ||
-        member.archetype?.toLowerCase().includes(lowerQuery) ||
-        member.bio?.toLowerCase().includes(lowerQuery)
-    );
+  (state, _query) => {
+    // Server-side search is now the primary mechanism (via oracle-bridge search param).
+    // Client-side filtering removed to avoid double-filtering.
+    return state.members;
   }
 );
 
@@ -214,7 +208,7 @@ export const $filteredMemberCount = computed($filteredMembers, (members) => memb
  * Members grouped by archetype for summary
  */
 export const $membersByArchetype = computed($memberDirectory, (state) => {
-  const grouped: Record<Archetype | 'None', MemberProfile[]> = {
+  const grouped: Record<string, MemberProfile[]> = {
     Builder: [],
     Guardian: [],
     Visionary: [],
@@ -224,6 +218,7 @@ export const $membersByArchetype = computed($memberDirectory, (state) => {
   };
   state.members.forEach((m) => {
     const key = m.archetype || 'None';
+    if (!grouped[key]) grouped[key] = [];
     grouped[key].push(m);
   });
   return grouped;
@@ -234,12 +229,12 @@ export const $membersByArchetype = computed($memberDirectory, (state) => {
  */
 export const $archetypeCounts = computed($membersByArchetype, (grouped) => ({
   All: Object.values(grouped).reduce((sum, arr) => sum + arr.length, 0),
-  Builder: grouped.Builder.length,
-  Guardian: grouped.Guardian.length,
-  Visionary: grouped.Visionary.length,
-  Connector: grouped.Connector.length,
-  Steward: grouped.Steward.length,
-  None: grouped.None.length,
+  Builder: (grouped.Builder ?? []).length,
+  Guardian: (grouped.Guardian ?? []).length,
+  Visionary: (grouped.Visionary ?? []).length,
+  Connector: (grouped.Connector ?? []).length,
+  Steward: (grouped.Steward ?? []).length,
+  None: (grouped.None ?? []).length,
 }));
 
 // ============================================================================
@@ -354,22 +349,23 @@ export function isMemberDataStale(thresholdMs: number = MEMBER_STALE_THRESHOLD_M
 // ============================================================================
 
 /**
- * Format member since date
- * @param nanos - Timestamp in nanoseconds
+ * Format member since date from ISO 8601 date string.
+ * Returns "Member since [Month] [Year]" format.
+ * @param isoDate - ISO 8601 date string (e.g. "2025-06-15T00:00:00Z")
  */
-export function formatMemberSince(nanos: bigint): string {
-  const millis = Number(nanos / BigInt(1_000_000));
-  return new Date(millis).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-  });
+export function formatMemberSince(isoDate: string): string {
+  const date = new Date(isoDate);
+  if (isNaN(date.getTime())) return 'Member since Unknown';
+  const month = date.toLocaleDateString('en-US', { month: 'long' });
+  const year = date.getFullYear();
+  return `Member since ${month} ${year}`;
 }
 
 /**
  * Get archetype color for styling
- * @param archetype - Member archetype
+ * @param archetype - Member archetype (plain string from oracle-bridge)
  */
-export function getArchetypeColor(archetype?: Archetype): string {
+export function getArchetypeColor(archetype?: string): string {
   switch (archetype) {
     case 'Builder':
       return 'text-orange-600 bg-orange-100';

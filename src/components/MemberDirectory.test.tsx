@@ -1,8 +1,8 @@
 /**
  * MemberDirectory Component Tests
  *
- * Story: 9-3-1-member-directory
- * ACs: 1, 2, 3, 4, 5
+ * Story: 9-3-1-member-directory, BL-021.2
+ * ACs: 1, 2, 3, 4, 5, 6, 7, 8, 10
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
@@ -10,7 +10,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { MemberDirectory } from '@/components/MemberDirectory';
-import { $contacts, clearMembers, clearContacts, type MemberProfile } from '@/stores';
+import { clearMembers, type MemberProfile } from '@/stores';
 
 // Mock analytics
 vi.mock('@/utils/analytics', () => ({
@@ -34,6 +34,7 @@ vi.mock('@/services/memberService', () => ({
     selectedMember: null,
     currentPage: 0,
     totalPages: 1,
+    hasMore: false,
     isLoading: false,
     isRefreshing: false,
     refresh: vi.fn(),
@@ -47,34 +48,10 @@ vi.mock('@/services/memberService', () => ({
   })),
 }));
 
-// Mock contactService
-vi.mock('@/services/contactService', () => ({
-  useContactRequests: vi.fn(() => ({
-    contactsState: $contacts.get(),
-    pendingSent: [],
-    pendingReceived: [],
-    approvedContacts: [],
-    pendingReceivedCount: 0,
-    isModalOpen: false,
-    recipientPrincipal: null,
-    isLoading: false,
-    isSending: false,
-    getStatusFor: vi.fn(() => null),
-    openModal: vi.fn(),
-    closeModal: vi.fn(),
-    send: vi.fn(),
-    approve: vi.fn(),
-    reject: vi.fn(),
-    refresh: vi.fn(),
-    clear: vi.fn(),
-  })),
-}));
-
 import { useMemberDirectory } from '@/services/memberService';
-import { useContactRequests } from '@/services/contactService';
 import { trackEvent } from '@/utils/analytics';
 
-// Helper to create a mock member profile
+// Helper to create a mock member profile matching the new MemberProfile type
 function createMockMember(overrides: Partial<MemberProfile> = {}): MemberProfile {
   return {
     principal: `mock-principal-${Math.random().toString(36).substring(2, 9)}`,
@@ -82,9 +59,7 @@ function createMockMember(overrides: Partial<MemberProfile> = {}): MemberProfile
     avatar: 'https://api.dicebear.com/7.x/identicon/svg?seed=test',
     archetype: 'Builder',
     bio: 'A test member bio',
-    memberSince:
-      BigInt(Date.now()) * BigInt(1_000_000) - BigInt(30 * 24 * 60 * 60) * BigInt(1_000_000_000), // 30 days ago
-    visibility: 'public',
+    joinDate: '2025-12-15T00:00:00Z',
     isActive: true,
     ...overrides,
   };
@@ -129,7 +104,6 @@ function createMockMembers(): MemberProfile[] {
 describe('MemberDirectory', () => {
   beforeEach(() => {
     clearMembers();
-    clearContacts();
     vi.clearAllMocks();
 
     // Reset mocks to default implementation
@@ -148,6 +122,7 @@ describe('MemberDirectory', () => {
       selectedMember: null,
       currentPage: 0,
       totalPages: 1,
+      hasMore: false,
       isLoading: false,
       isRefreshing: false,
       refresh: vi.fn(),
@@ -157,26 +132,6 @@ describe('MemberDirectory', () => {
       setSearch: vi.fn(),
       clearSearch: vi.fn(),
       selectMember: vi.fn(),
-      clear: vi.fn(),
-    }));
-
-    vi.mocked(useContactRequests).mockImplementation(() => ({
-      contactsState: $contacts.get(),
-      pendingSent: [],
-      pendingReceived: [],
-      approvedContacts: [],
-      pendingReceivedCount: 0,
-      isModalOpen: false,
-      recipientPrincipal: null,
-      isLoading: false,
-      isSending: false,
-      getStatusFor: vi.fn(() => null),
-      openModal: vi.fn(),
-      closeModal: vi.fn(),
-      send: vi.fn(),
-      approve: vi.fn(),
-      reject: vi.fn(),
-      refresh: vi.fn(),
       clear: vi.fn(),
     }));
   });
@@ -211,6 +166,7 @@ describe('MemberDirectory', () => {
       selectedMember: null,
       currentPage: 0,
       totalPages: 1,
+      hasMore: false,
       isLoading: false,
       isRefreshing: false,
       refresh: vi.fn(),
@@ -248,7 +204,7 @@ describe('MemberDirectory', () => {
       expect(screen.getByText('Eve Steward')).toBeInTheDocument();
     });
 
-    it('should display member archetype badges (AC-1)', () => {
+    it('should display member archetype badges (AC-2)', () => {
       const members = createMockMembers();
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
@@ -270,9 +226,59 @@ describe('MemberDirectory', () => {
 
       expect(screen.getByText(/5 members/i)).toBeInTheDocument();
     });
+
+    it('should display join date formatted as "Member since [Month] [Year]" (AC-2)', () => {
+      const members = [
+        createMockMember({
+          principal: 'p-1',
+          displayName: 'Test User',
+          joinDate: '2025-06-15T00:00:00Z',
+        }),
+      ];
+      vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
+
+      render(<MemberDirectory />);
+
+      expect(screen.getByText('Member since June 2025')).toBeInTheDocument();
+    });
+
+    it('should truncate bio at 80 characters with ellipsis (AC-2)', () => {
+      const longBio =
+        'This is a very long biography that exceeds eighty characters and should be truncated with ellipsis dots at the end';
+      const members = [
+        createMockMember({
+          principal: 'p-1',
+          displayName: 'Long Bio User',
+          bio: longBio,
+        }),
+      ];
+      vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
+
+      render(<MemberDirectory />);
+
+      // Should show truncated bio (80 chars + "...")
+      const truncated = longBio.substring(0, 80) + '...';
+      expect(screen.getByText(truncated)).toBeInTheDocument();
+    });
+
+    it('should render default avatar placeholder when avatar is undefined (AC-2)', () => {
+      const members = [
+        createMockMember({
+          principal: 'p-1',
+          displayName: 'No Avatar',
+          avatar: undefined,
+        }),
+      ];
+      vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
+
+      render(<MemberDirectory />);
+
+      // Should show initials "NO" (from "No Avatar")
+      expect(screen.getByLabelText("No Avatar's initials")).toBeInTheDocument();
+    });
   });
 
-  describe('Search (AC-2)', () => {
+  describe('Search (AC-4)', () => {
     it('should render search input', () => {
       const members = createMockMembers();
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
@@ -282,7 +288,7 @@ describe('MemberDirectory', () => {
       expect(screen.getByPlaceholderText(/search by name/i)).toBeInTheDocument();
     });
 
-    it('should call setSearch when typing', async () => {
+    it('should call setSearch when typing (AC-4)', async () => {
       const mockSetSearch = vi.fn();
       const members = createMockMembers();
       vi.mocked(useMemberDirectory).mockImplementation(() =>
@@ -333,7 +339,7 @@ describe('MemberDirectory', () => {
       }
     });
 
-    it('should display member detail modal when member is selected', () => {
+    it('should display member detail modal with full bio when member is selected (AC-3)', () => {
       const members = createMockMembers();
       const selectedMember = members[0];
       vi.mocked(useMemberDirectory).mockImplementation(() =>
@@ -348,84 +354,33 @@ describe('MemberDirectory', () => {
     });
   });
 
-  describe('Contact Request (AC-4)', () => {
-    it('should show Send Contact Request button in member detail modal', () => {
-      const members = createMockMembers();
-      const selectedMember = members[0];
-      vi.mocked(useMemberDirectory).mockImplementation(() =>
-        createMockHookResult(members, { selectedMember })
-      );
-
-      render(<MemberDirectory userPrincipal="my-principal" />);
-
-      // Modal should have contact request button
-      expect(screen.getByRole('button', { name: /send contact request/i })).toBeInTheDocument();
-    });
-
-    it('should call contact handler when Send Contact Request is clicked', async () => {
-      const mockOpenModal = vi.fn();
-      const members = createMockMembers();
-      const selectedMember = members[0];
-      vi.mocked(useMemberDirectory).mockImplementation(() =>
-        createMockHookResult(members, { selectedMember })
-      );
-
-      vi.mocked(useContactRequests).mockImplementation(() => ({
-        contactsState: $contacts.get(),
-        pendingSent: [],
-        pendingReceived: [],
-        approvedContacts: [],
-        pendingReceivedCount: 0,
-        isModalOpen: false,
-        recipientPrincipal: null,
-        isLoading: false,
-        isSending: false,
-        getStatusFor: vi.fn(() => null),
-        openModal: mockOpenModal,
-        closeModal: vi.fn(),
-        send: vi.fn(),
-        approve: vi.fn(),
-        reject: vi.fn(),
-        refresh: vi.fn(),
-        clear: vi.fn(),
-      }));
-
-      render(<MemberDirectory userPrincipal="my-principal" />);
-
-      const contactButton = screen.getByRole('button', { name: /send contact request/i });
-      await userEvent.click(contactButton);
-
-      expect(mockOpenModal).toHaveBeenCalled();
-    });
-
-    it('should show pending status when request already sent', () => {
+  describe('Contact Buttons (AC-7)', () => {
+    it('should show disabled Contact button on member cards with "Coming soon" tooltip', () => {
       const members = createMockMembers();
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
-      vi.mocked(useContactRequests).mockImplementation(() => ({
-        contactsState: $contacts.get(),
-        pendingSent: [],
-        pendingReceived: [],
-        approvedContacts: [],
-        pendingReceivedCount: 0,
-        isModalOpen: false,
-        recipientPrincipal: null,
-        isLoading: false,
-        isSending: false,
-        getStatusFor: vi.fn((principal) => (principal === 'principal-1' ? 'pending' : null)),
-        openModal: vi.fn(),
-        closeModal: vi.fn(),
-        send: vi.fn(),
-        approve: vi.fn(),
-        reject: vi.fn(),
-        refresh: vi.fn(),
-        clear: vi.fn(),
-      }));
+      render(<MemberDirectory />);
+
+      // All Contact buttons should be disabled
+      const contactButtons = screen.getAllByTitle('Contact requests coming soon');
+      expect(contactButtons.length).toBeGreaterThan(0);
+      contactButtons.forEach((btn) => {
+        expect(btn).toBeDisabled();
+      });
+    });
+
+    it('should show disabled Send Contact Request in detail modal', () => {
+      const members = createMockMembers();
+      const selectedMember = members[0];
+      vi.mocked(useMemberDirectory).mockImplementation(() =>
+        createMockHookResult(members, { selectedMember })
+      );
 
       render(<MemberDirectory userPrincipal="my-principal" />);
 
-      // Should show pending status for the first member
-      expect(screen.getByText('Pending')).toBeInTheDocument();
+      // Modal should have a disabled contact button
+      const contactButton = screen.getByRole('button', { name: /send contact request/i });
+      expect(contactButton).toBeDisabled();
     });
   });
 
@@ -452,7 +407,7 @@ describe('MemberDirectory', () => {
     });
   });
 
-  describe('Error state', () => {
+  describe('Error state (AC-8)', () => {
     it('should show error message when fetch fails', () => {
       vi.mocked(useMemberDirectory).mockImplementation(() =>
         createMockHookResult([], {
@@ -473,7 +428,7 @@ describe('MemberDirectory', () => {
       expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
     });
 
-    it('should call refresh when retry is clicked', async () => {
+    it('should call refresh when retry is clicked (AC-8)', async () => {
       const mockRefresh = vi.fn();
 
       vi.mocked(useMemberDirectory).mockImplementation(() =>
@@ -499,7 +454,7 @@ describe('MemberDirectory', () => {
     });
   });
 
-  describe('Empty state', () => {
+  describe('Empty state (AC-8)', () => {
     it('should show empty state when no members', () => {
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult([]));
 
@@ -515,11 +470,11 @@ describe('MemberDirectory', () => {
 
       render(<MemberDirectory />);
 
-      expect(screen.getByText(/no members match/i)).toBeInTheDocument();
+      expect(screen.getByText(/No members found/i)).toBeInTheDocument();
     });
   });
 
-  describe('Pagination', () => {
+  describe('Pagination (AC-5)', () => {
     it('should render pagination when multiple pages', () => {
       const members = createMockMembers();
       vi.mocked(useMemberDirectory).mockImplementation(() =>
@@ -533,6 +488,7 @@ describe('MemberDirectory', () => {
             error: null,
           },
           totalPages: 5,
+          hasMore: true,
         })
       );
 
@@ -555,6 +511,7 @@ describe('MemberDirectory', () => {
             error: null,
           },
           totalPages: 5,
+          hasMore: true,
           nextPage: mockNextPage,
         })
       );
@@ -581,6 +538,7 @@ describe('MemberDirectory', () => {
           },
           currentPage: 0,
           totalPages: 5,
+          hasMore: true,
         })
       );
 
@@ -590,7 +548,7 @@ describe('MemberDirectory', () => {
       expect(prevButton).toBeDisabled();
     });
 
-    it('should disable next button on last page', () => {
+    it('should disable next button when hasMore is false', () => {
       const members = createMockMembers();
       vi.mocked(useMemberDirectory).mockImplementation(() =>
         createMockHookResult(members, {
@@ -604,6 +562,7 @@ describe('MemberDirectory', () => {
           },
           currentPage: 4,
           totalPages: 5,
+          hasMore: false,
         })
       );
 
@@ -640,8 +599,8 @@ describe('MemberDirectory', () => {
     });
   });
 
-  describe('Own Profile (AC-5)', () => {
-    it('should mark current user profile with (You) label', () => {
+  describe('Own Profile / "You" Indicator (AC-6)', () => {
+    it('should show "You" badge when member principal matches userPrincipal', () => {
       const members = createMockMembers();
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
@@ -651,8 +610,8 @@ describe('MemberDirectory', () => {
         </MemoryRouter>
       );
 
-      // Alice Builder should have "(You)" label since principal matches
-      expect(screen.getByText('(You)')).toBeInTheDocument();
+      // Alice Builder should have "You" badge since principal matches
+      expect(screen.getByText('You')).toBeInTheDocument();
     });
 
     it('should show Edit Profile Settings button for own profile in detail modal', () => {
@@ -672,23 +631,22 @@ describe('MemberDirectory', () => {
       expect(screen.getByRole('link', { name: /Edit Profile Settings/i })).toBeInTheDocument();
     });
 
-    it('should not show Send Contact Request button for own profile', () => {
-      const members = createMockMembers();
-      const selectedMember = members[0]; // Alice Builder with principal-1
-      vi.mocked(useMemberDirectory).mockImplementation(() =>
-        createMockHookResult(members, { selectedMember })
-      );
+    it('should not show "You" badge for other members', () => {
+      const members = [
+        createMockMember({
+          principal: 'other-principal',
+          displayName: 'Other Member',
+        }),
+      ];
+      vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
       render(
         <MemoryRouter>
-          <MemberDirectory userPrincipal="principal-1" />
+          <MemberDirectory userPrincipal="my-principal" />
         </MemoryRouter>
       );
 
-      // Should NOT show contact request button for own profile
-      expect(
-        screen.queryByRole('button', { name: /send contact request/i })
-      ).not.toBeInTheDocument();
+      expect(screen.queryByText('You')).not.toBeInTheDocument();
     });
 
     it('should link Edit Profile Settings to privacy settings', () => {
