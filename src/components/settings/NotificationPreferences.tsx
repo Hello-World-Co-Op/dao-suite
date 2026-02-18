@@ -21,7 +21,10 @@ import {
   type CanisterNotificationPreferences,
   type CanisterNotificationCategories,
 } from '@/services/notificationPreferencesService';
-import { updateNotificationPreferences as updateLocalStoragePreferences } from '@/stores';
+import {
+  updateNotificationPreferences as updateLocalStoragePreferences,
+  $notificationPreferences,
+} from '@/stores';
 
 // ============================================================================
 // Constants
@@ -172,6 +175,11 @@ export function NotificationPreferences(): React.ReactElement {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [migrationBannerVisible, setMigrationBannerVisible] = useState(false);
 
+  // Privacy: hideProposalTitles is stored in localStorage via the governance prefs atom
+  const [hideProposalTitles, setHideProposalTitles] = useState<boolean>(
+    () => $notificationPreferences.get().hideProposalTitles
+  );
+
   // Load preferences on mount
   useEffect(() => {
     let mounted = true;
@@ -292,6 +300,12 @@ export function NotificationPreferences(): React.ReactElement {
     },
     []
   );
+
+  // Privacy toggle: persists to localStorage governance atom
+  const handleHideProposalTitlesChange = useCallback((checked: boolean) => {
+    setHideProposalTitles(checked);
+    updateLocalStoragePreferences({ hideProposalTitles: checked });
+  }, []);
 
   // Render
   if (loading) {
@@ -451,6 +465,19 @@ export function NotificationPreferences(): React.ReactElement {
               emailDisabled={!preferences.email_enabled}
             />
           ))}
+        </div>
+
+        {/* Privacy Section */}
+        <div className="space-y-1 pt-4 border-t border-gray-100">
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Privacy</h4>
+
+          <ToggleSwitch
+            id="hide-proposal-titles-toggle"
+            label="Hide Proposal Titles in Notifications"
+            description="Show generic messages instead of proposal titles in notifications"
+            checked={hideProposalTitles}
+            onChange={handleHideProposalTitlesChange}
+          />
         </div>
 
         {/* Save Button (AC7) */}

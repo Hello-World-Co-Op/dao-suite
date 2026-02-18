@@ -27,18 +27,9 @@ import {
 } from 'lucide-react';
 import { NotificationPreferences } from '@/components/settings/NotificationPreferences';
 import { VisibilitySettings } from '@/components/VisibilitySettings';
+import { getOracleBridgeUrl } from '@/utils/oracleBridge';
 
 const log = createLogger('Settings');
-
-function getOracleBridgeUrl(): string {
-  if (import.meta.env.VITE_ORACLE_BRIDGE_URL) {
-    return import.meta.env.VITE_ORACLE_BRIDGE_URL;
-  }
-  if (import.meta.env.PROD) {
-    return '';
-  }
-  return 'http://localhost:3000';
-}
 
 // Unified device interface for display
 interface DisplayDevice {

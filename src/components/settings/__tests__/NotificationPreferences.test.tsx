@@ -3,6 +3,7 @@
  *
  * Story: BL-022.2
  * ACs: 2, 6, 7, 9, 10
+ * AI-R108: Privacy section (hideProposalTitles toggle)
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
@@ -16,6 +17,7 @@ import type { CanisterNotificationPreferences } from '@/services/notificationPre
 
 const mockGetPreferences = vi.fn();
 const mockUpdatePreferences = vi.fn();
+const mockUpdateLocalStoragePreferences = vi.fn();
 
 vi.mock('@/services/notificationPreferencesService', () => ({
   getNotificationPreferences: (...args: unknown[]) => mockGetPreferences(...args),
@@ -36,7 +38,18 @@ vi.mock('@/services/notificationPreferencesService', () => ({
 }));
 
 vi.mock('@/stores', () => ({
-  updateNotificationPreferences: vi.fn(),
+  updateNotificationPreferences: (...args: unknown[]) =>
+    mockUpdateLocalStoragePreferences(...args),
+  $notificationPreferences: {
+    get: vi.fn(() => ({
+      enabled: true,
+      vote_result: true,
+      new_proposal: true,
+      voting_ending: true,
+      hideProposalTitles: false,
+      schemaVersion: 1,
+    })),
+  },
 }));
 
 const DEFAULT_PREFS: CanisterNotificationPreferences = {
@@ -59,6 +72,7 @@ describe('NotificationPreferences', () => {
     localStorage.clear();
     mockGetPreferences.mockResolvedValue({ ...DEFAULT_PREFS });
     mockUpdatePreferences.mockResolvedValue(undefined);
+    mockUpdateLocalStoragePreferences.mockReset();
   });
 
   afterEach(() => {
@@ -309,6 +323,65 @@ describe('NotificationPreferences', () => {
     await waitFor(() => {
       expect(saveButton).toBeDisabled();
       expect(screen.getByText('Saving...')).toBeInTheDocument();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Privacy section — AI-R108: restored hideProposalTitles toggle
+  // -------------------------------------------------------------------------
+
+  it('should render the Privacy section with Hide Proposal Titles toggle', async () => {
+    render(<NotificationPreferences />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Notification Preferences')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Privacy')).toBeInTheDocument();
+    expect(screen.getByText('Hide Proposal Titles in Notifications')).toBeInTheDocument();
+  });
+
+  it('should render Hide Proposal Titles toggle as unchecked by default', async () => {
+    render(<NotificationPreferences />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Notification Preferences')).toBeInTheDocument();
+    });
+
+    const toggle = document.getElementById('hide-proposal-titles-toggle') as HTMLButtonElement;
+    expect(toggle).toBeInTheDocument();
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+  });
+
+  it('should toggle Hide Proposal Titles and persist to localStorage', async () => {
+    render(<NotificationPreferences />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Notification Preferences')).toBeInTheDocument();
+    });
+
+    const toggle = document.getElementById('hide-proposal-titles-toggle') as HTMLButtonElement;
+    fireEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    expect(mockUpdateLocalStoragePreferences).toHaveBeenCalledWith({ hideProposalTitles: true });
+  });
+
+  it('should toggle Hide Proposal Titles back to false', async () => {
+    render(<NotificationPreferences />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Notification Preferences')).toBeInTheDocument();
+    });
+
+    const toggle = document.getElementById('hide-proposal-titles-toggle') as HTMLButtonElement;
+    // Toggle on then off
+    fireEvent.click(toggle);
+    fireEvent.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(mockUpdateLocalStoragePreferences).toHaveBeenLastCalledWith({
+      hideProposalTitles: false,
     });
   });
 });

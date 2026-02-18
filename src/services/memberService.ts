@@ -11,6 +11,7 @@
 
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { useStore } from '@nanostores/react';
+import { getOracleBridgeUrl } from '@/utils/oracleBridge';
 import {
   $memberDirectory,
   $selectedMember,
@@ -104,19 +105,8 @@ export interface VisibilityResult {
 // Helpers
 // ============================================================================
 
-/**
- * Get oracle-bridge base URL.
- * Same pattern as Settings.tsx — reads env var or defaults.
- */
-export function getOracleBridgeUrl(): string {
-  if (import.meta.env.VITE_ORACLE_BRIDGE_URL) {
-    return import.meta.env.VITE_ORACLE_BRIDGE_URL;
-  }
-  if (import.meta.env.PROD) {
-    return ''; // Same-origin in production (IC asset canister)
-  }
-  return 'http://localhost:3000';
-}
+// Re-export for consumers (and tests) that import getOracleBridgeUrl from this module
+export { getOracleBridgeUrl } from '@/utils/oracleBridge';
 
 /**
  * Create structured log entry

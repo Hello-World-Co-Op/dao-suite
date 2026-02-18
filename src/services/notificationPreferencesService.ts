@@ -8,6 +8,8 @@
  * ACs: 6, 7
  */
 
+import { getOracleBridgeUrl } from '@/utils/oracleBridge';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -46,23 +48,8 @@ export const DEFAULT_CANISTER_PREFERENCES: CanisterNotificationPreferences = {
   },
 };
 
-// ============================================================================
-// Helpers
-// ============================================================================
-
-/**
- * Get oracle-bridge base URL.
- * Same pattern as Settings.tsx and memberService.ts.
- */
-export function getOracleBridgeUrl(): string {
-  if (import.meta.env.VITE_ORACLE_BRIDGE_URL) {
-    return import.meta.env.VITE_ORACLE_BRIDGE_URL;
-  }
-  if (import.meta.env.PROD) {
-    return ''; // Same-origin in production (IC asset canister)
-  }
-  return 'http://localhost:3000';
-}
+// Re-export for consumers that import getOracleBridgeUrl from this module
+export { getOracleBridgeUrl } from '@/utils/oracleBridge';
 
 // ============================================================================
 // API Functions
