@@ -52,6 +52,9 @@ const MemberDirectoryPage = lazy(() => import('./pages/MemberDirectoryPage'));
 // Member Profile (BL-023.2)
 const MemberProfilePage = lazy(() => import('./pages/MemberProfilePage'));
 
+// Events Calendar (BL-025.3)
+const EventsPage = lazy(() => import('./pages/EventsPage'));
+
 // Unsubscribe (public page - no auth required)
 const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 
@@ -115,6 +118,8 @@ export default function App() {
               {/* Member Directory */}
               <Route path="/members" element={<MemberDirectoryPage />} />
               <Route path="/members/:principal" element={<MemberProfilePage />} />
+              {/* Events Calendar */}
+              <Route path="/events" element={<EventsPage />} />
             </Route>
           </Routes>
         </Suspense>

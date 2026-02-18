@@ -15,6 +15,7 @@ import {
   Users,
   Rocket,
   ExternalLink,
+  Calendar,
 } from 'lucide-react';
 import { useNotificationPoller } from '@/services/notificationPoller';
 import { TokenBalance } from '@/components/TokenBalance';
@@ -228,6 +229,30 @@ export default function Dashboard() {
                   className="w-full border-teal-200 text-teal-700 hover:bg-teal-50"
                 >
                   Browse Members
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Events Calendar Card (BL-025.3) */}
+            <Card
+              className="hover:shadow-lg transition-shadow cursor-pointer bg-gradient-to-r from-teal-50 to-green-50 border-teal-200"
+              onClick={() => navigate('/events')}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5 text-teal-600" />
+                  Events Calendar
+                </CardTitle>
+                <CardDescription>
+                  Browse upcoming co-op events, RSVP to attend, and add events to your personal calendar
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  variant="outline"
+                  className="w-full border-teal-200 text-teal-700 hover:bg-teal-50"
+                >
+                  View Events
                 </Button>
               </CardContent>
             </Card>
