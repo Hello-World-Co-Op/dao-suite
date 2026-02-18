@@ -8,7 +8,7 @@
  * AC: 1, 2, 3, 4, 5, 6, 7
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { useSearchParams } from 'react-router-dom';
 
@@ -30,6 +30,12 @@ describe('Unsubscribe', () => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', vi.fn());
     vi.stubEnv('VITE_ORACLE_BRIDGE_URL', '');
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it('shows loading state on initial mount', () => {

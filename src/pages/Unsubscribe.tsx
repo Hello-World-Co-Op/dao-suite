@@ -10,21 +10,12 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { getOracleBridgeUrl } from '@/services/notificationPreferencesService';
 
 type UnsubscribeState =
   | { type: 'loading' }
   | { type: 'success'; category: string }
   | { type: 'error'; message: string };
-
-function getOracleBridgeUrl(): string {
-  if (import.meta.env.VITE_ORACLE_BRIDGE_URL) {
-    return import.meta.env.VITE_ORACLE_BRIDGE_URL;
-  }
-  if (import.meta.env.PROD) {
-    return '';
-  }
-  return 'http://localhost:3000';
-}
 
 export default function Unsubscribe() {
   const [searchParams] = useSearchParams();
@@ -74,7 +65,11 @@ export default function Unsubscribe() {
             'Something went wrong. Please try again or log in to manage your notification preferences.',
         });
       });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Mount-only effect: searchParams are read once at load time. The unsubscribe
+  // action is intentionally one-shot — re-running on URL change would re-submit
+  // the token, which could cause duplicate calls or confusing state transitions.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (state.type === 'loading') {
     return (
