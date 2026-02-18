@@ -719,6 +719,20 @@ export function MemberDirectory({
         />
       </div>
 
+      {/* Inline error banner for post-initial-load errors (pagination/search failures) */}
+      {memberState.error && memberState.lastUpdated && (
+        <div className="mb-4 flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <AlertCircle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+          <span className="flex-1">{memberState.error}</span>
+          <button
+            onClick={refresh}
+            className="font-medium underline hover:no-underline focus:outline-none"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Search empty state */}
       {searchQuery && filteredMembers.length === 0 ? (
         <EmptyState isSearchEmpty searchQuery={searchQuery} onClearSearch={clearSearch} />

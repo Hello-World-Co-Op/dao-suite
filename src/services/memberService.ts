@@ -483,13 +483,18 @@ export function useMemberDirectory(
 
   /**
    * Go to next page
+   * Uses hasMore as the authoritative signal when available, falling back to totalPages.
+   * This prevents the Next button being enabled (via hasMore) while the guard silently
+   * blocks navigation (via totalPages-only check).
    */
   const nextPage = useCallback(async () => {
-    if (currentPageValue < totalPagesValue - 1) {
+    // hasMore from oracle-bridge is authoritative: if it says there's more, trust it.
+    const canGoNext = hasMore || currentPageValue < totalPagesValue - 1;
+    if (canGoNext) {
       const currentSearch = $memberSearchQuery.get();
       await loadMembers(currentPageValue + 1, false, currentSearch || undefined);
     }
-  }, [loadMembers, currentPageValue, totalPagesValue]);
+  }, [loadMembers, currentPageValue, totalPagesValue, hasMore]);
 
   /**
    * Go to previous page
