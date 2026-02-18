@@ -49,6 +49,9 @@ const EscrowViewPage = lazy(() => import('./pages/EscrowViewPage'));
 // Member Directory
 const MemberDirectoryPage = lazy(() => import('./pages/MemberDirectoryPage'));
 
+// Member Profile (BL-023.2)
+const MemberProfilePage = lazy(() => import('./pages/MemberProfilePage'));
+
 // Unsubscribe (public page - no auth required)
 const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
 
@@ -111,6 +114,7 @@ export default function App() {
               <Route path="/escrow" element={<EscrowViewPage />} />
               {/* Member Directory */}
               <Route path="/members" element={<MemberDirectoryPage />} />
+              <Route path="/members/:principal" element={<MemberProfilePage />} />
             </Route>
           </Routes>
         </Suspense>

@@ -1,8 +1,8 @@
 /**
  * MemberDirectory Component Tests
  *
- * Story: 9-3-1-member-directory, BL-021.2
- * ACs: 1, 2, 3, 4, 5, 6, 7, 8, 10
+ * Story: 9-3-1-member-directory, BL-021.2, BL-023.2
+ * ACs: 1, 2, 4, 5, 6, 8, 10, 11
  */
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
@@ -50,6 +50,11 @@ vi.mock('@/services/memberService', () => ({
 
 import { useMemberDirectory } from '@/services/memberService';
 import { trackEvent } from '@/utils/analytics';
+
+// Helper: all renders need MemoryRouter since MemberCard uses <Link>
+function renderWithRouter(ui: React.ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
 
 // Helper to create a mock member profile matching the new MemberProfile type
 function createMockMember(overrides: Partial<MemberProfile> = {}): MemberProfile {
@@ -186,7 +191,7 @@ describe('MemberDirectory', () => {
       const members = createMockMembers();
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       expect(screen.getByText('Member Directory')).toBeInTheDocument();
     });
@@ -195,7 +200,7 @@ describe('MemberDirectory', () => {
       const members = createMockMembers();
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       expect(screen.getByText('Alice Builder')).toBeInTheDocument();
       expect(screen.getByText('Bob Guardian')).toBeInTheDocument();
@@ -208,7 +213,7 @@ describe('MemberDirectory', () => {
       const members = createMockMembers();
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       // Should have archetype badges for each member
       expect(screen.getByText('Builder')).toBeInTheDocument();
@@ -222,7 +227,7 @@ describe('MemberDirectory', () => {
       const members = createMockMembers();
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       expect(screen.getByText(/5 members/i)).toBeInTheDocument();
     });
@@ -237,7 +242,7 @@ describe('MemberDirectory', () => {
       ];
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       expect(screen.getByText('Member since June 2025')).toBeInTheDocument();
     });
@@ -254,7 +259,7 @@ describe('MemberDirectory', () => {
       ];
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       // Should show truncated bio (80 chars + "...")
       const truncated = longBio.substring(0, 80) + '...';
@@ -271,7 +276,7 @@ describe('MemberDirectory', () => {
       ];
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       // Should show initials "NO" (from "No Avatar")
       expect(screen.getByLabelText("No Avatar's initials")).toBeInTheDocument();
@@ -283,7 +288,7 @@ describe('MemberDirectory', () => {
       const members = createMockMembers();
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       expect(screen.getByPlaceholderText(/search by name/i)).toBeInTheDocument();
     });
@@ -295,7 +300,7 @@ describe('MemberDirectory', () => {
         createMockHookResult(members, { setSearch: mockSetSearch })
       );
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       const searchInput = screen.getByPlaceholderText(/search by name/i);
       await userEvent.type(searchInput, 'Alice');
@@ -315,72 +320,40 @@ describe('MemberDirectory', () => {
         createMockHookResult(members, { searchQuery: 'Alice' })
       );
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       expect(screen.getByRole('button', { name: /clear search/i })).toBeInTheDocument();
     });
   });
 
-  describe('Member Detail (AC-3)', () => {
-    it('should call selectMember when member card is clicked', async () => {
-      const mockSelectMember = vi.fn();
-      const members = createMockMembers();
-      vi.mocked(useMemberDirectory).mockImplementation(() =>
-        createMockHookResult(members, { selectMember: mockSelectMember })
-      );
-
-      render(<MemberDirectory />);
-
-      // Click on member card
-      const memberCard = screen.getByText('Alice Builder').closest('button, [role="button"]');
-      if (memberCard) {
-        await userEvent.click(memberCard);
-        expect(mockSelectMember).toHaveBeenCalled();
-      }
-    });
-
-    it('should display member detail modal with full bio when member is selected (AC-3)', () => {
-      const members = createMockMembers();
-      const selectedMember = members[0];
-      vi.mocked(useMemberDirectory).mockImplementation(() =>
-        createMockHookResult(members, { selectedMember })
-      );
-
-      render(<MemberDirectory />);
-
-      // Modal should show member details (bio appears in card and modal)
-      const bioElements = screen.getAllByText('Full-stack developer passionate about Web3');
-      expect(bioElements.length).toBeGreaterThanOrEqual(1);
-    });
-  });
-
-  describe('Contact Buttons (AC-7)', () => {
-    it('should show disabled Contact button on member cards with "Coming soon" tooltip', () => {
+  describe('Member Card Navigation (AC-11, BL-023.2)', () => {
+    it('should render member cards as links to /members/:principal', () => {
       const members = createMockMembers();
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
-      // All Contact buttons should be disabled
-      const contactButtons = screen.getAllByTitle('Contact requests coming soon');
-      expect(contactButtons.length).toBeGreaterThan(0);
-      contactButtons.forEach((btn) => {
-        expect(btn).toBeDisabled();
-      });
+      // Each member card should be a link to their profile page
+      const aliceLink = screen.getByText('Alice Builder').closest('a');
+      expect(aliceLink).toHaveAttribute('href', '/members/principal-1');
+
+      const bobLink = screen.getByText('Bob Guardian').closest('a');
+      expect(bobLink).toHaveAttribute('href', '/members/principal-2');
     });
 
-    it('should show disabled Send Contact Request in detail modal', () => {
-      const members = createMockMembers();
-      const selectedMember = members[0];
-      vi.mocked(useMemberDirectory).mockImplementation(() =>
-        createMockHookResult(members, { selectedMember })
-      );
+    it('should render member card with correct href for navigation', () => {
+      const members = [
+        createMockMember({
+          principal: 'my-test-principal-123',
+          displayName: 'Test Navigator',
+        }),
+      ];
+      vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
-      render(<MemberDirectory userPrincipal="my-principal" />);
+      renderWithRouter(<MemberDirectory />);
 
-      // Modal should have a disabled contact button
-      const contactButton = screen.getByRole('button', { name: /send contact request/i });
-      expect(contactButton).toBeDisabled();
+      const link = screen.getByText('Test Navigator').closest('a');
+      expect(link).toHaveAttribute('href', '/members/my-test-principal-123');
     });
   });
 
@@ -400,7 +373,7 @@ describe('MemberDirectory', () => {
         })
       );
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       // Skeleton should have animate-pulse class
       expect(document.querySelector('.animate-pulse')).toBeInTheDocument();
@@ -422,7 +395,7 @@ describe('MemberDirectory', () => {
         })
       );
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       expect(screen.getByText(/failed to load/i)).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
@@ -445,7 +418,7 @@ describe('MemberDirectory', () => {
         })
       );
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       const retryButton = screen.getByRole('button', { name: /retry/i });
       await userEvent.click(retryButton);
@@ -458,7 +431,7 @@ describe('MemberDirectory', () => {
     it('should show empty state when no members', () => {
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult([]));
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       expect(screen.getByText(/No members in directory/i)).toBeInTheDocument();
     });
@@ -468,7 +441,7 @@ describe('MemberDirectory', () => {
         createMockHookResult([], { searchQuery: 'xyz123' })
       );
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       expect(screen.getByText(/No members found/i)).toBeInTheDocument();
     });
@@ -492,7 +465,7 @@ describe('MemberDirectory', () => {
         })
       );
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       expect(screen.getByText(/page 1 of 5/i)).toBeInTheDocument();
     });
@@ -516,7 +489,7 @@ describe('MemberDirectory', () => {
         })
       );
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       const nextButton = screen.getByRole('button', { name: /next/i });
       await userEvent.click(nextButton);
@@ -542,7 +515,7 @@ describe('MemberDirectory', () => {
         })
       );
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       const prevButton = screen.getByRole('button', { name: /previous/i });
       expect(prevButton).toBeDisabled();
@@ -566,7 +539,7 @@ describe('MemberDirectory', () => {
         })
       );
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       const nextButton = screen.getByRole('button', { name: /next/i });
       expect(nextButton).toBeDisabled();
@@ -578,7 +551,7 @@ describe('MemberDirectory', () => {
       const members = createMockMembers();
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       expect(screen.getByRole('button', { name: /refresh/i })).toBeInTheDocument();
     });
@@ -590,7 +563,7 @@ describe('MemberDirectory', () => {
         createMockHookResult(members, { refresh: mockRefresh })
       );
 
-      render(<MemberDirectory />);
+      renderWithRouter(<MemberDirectory />);
 
       const refreshButton = screen.getByRole('button', { name: /refresh/i });
       await userEvent.click(refreshButton);
@@ -604,31 +577,10 @@ describe('MemberDirectory', () => {
       const members = createMockMembers();
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
-      render(
-        <MemoryRouter>
-          <MemberDirectory userPrincipal="principal-1" />
-        </MemoryRouter>
-      );
+      renderWithRouter(<MemberDirectory userPrincipal="principal-1" />);
 
       // Alice Builder should have "You" badge since principal matches
       expect(screen.getByText('You')).toBeInTheDocument();
-    });
-
-    it('should show Edit Profile Settings button for own profile in detail modal', () => {
-      const members = createMockMembers();
-      const selectedMember = members[0]; // Alice Builder with principal-1
-      vi.mocked(useMemberDirectory).mockImplementation(() =>
-        createMockHookResult(members, { selectedMember })
-      );
-
-      render(
-        <MemoryRouter>
-          <MemberDirectory userPrincipal="principal-1" />
-        </MemoryRouter>
-      );
-
-      // Should show Edit Profile Settings button instead of contact request
-      expect(screen.getByRole('link', { name: /Edit Profile Settings/i })).toBeInTheDocument();
     });
 
     it('should not show "You" badge for other members', () => {
@@ -640,30 +592,9 @@ describe('MemberDirectory', () => {
       ];
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
-      render(
-        <MemoryRouter>
-          <MemberDirectory userPrincipal="my-principal" />
-        </MemoryRouter>
-      );
+      renderWithRouter(<MemberDirectory userPrincipal="my-principal" />);
 
       expect(screen.queryByText('You')).not.toBeInTheDocument();
-    });
-
-    it('should link Edit Profile Settings to privacy settings', () => {
-      const members = createMockMembers();
-      const selectedMember = members[0];
-      vi.mocked(useMemberDirectory).mockImplementation(() =>
-        createMockHookResult(members, { selectedMember })
-      );
-
-      render(
-        <MemoryRouter>
-          <MemberDirectory userPrincipal="principal-1" />
-        </MemoryRouter>
-      );
-
-      const editLink = screen.getByRole('link', { name: /Edit Profile Settings/i });
-      expect(editLink).toHaveAttribute('href', '/settings?tab=privacy');
     });
   });
 
@@ -672,11 +603,7 @@ describe('MemberDirectory', () => {
       const members = createMockMembers();
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
-      render(
-        <MemoryRouter>
-          <MemberDirectory />
-        </MemoryRouter>
-      );
+      renderWithRouter(<MemberDirectory />);
 
       expect(trackEvent).toHaveBeenCalledWith('member_directory_loaded', expect.any(Object));
     });
@@ -687,7 +614,7 @@ describe('MemberDirectory', () => {
       const members = createMockMembers();
       vi.mocked(useMemberDirectory).mockImplementation(() => createMockHookResult(members));
 
-      const { container } = render(<MemberDirectory className="custom-class" />);
+      const { container } = renderWithRouter(<MemberDirectory className="custom-class" />);
 
       expect(container.firstChild).toHaveClass('custom-class');
     });

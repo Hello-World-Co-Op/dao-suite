@@ -9,7 +9,7 @@
  * ACs: 1, 2, 3, 4, 5, 6, 7, 8
  */
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   RefreshCw,
@@ -22,14 +22,13 @@ import {
   ChevronRight,
   Calendar,
   Shield,
-  Settings,
 } from 'lucide-react';
 import {
   formatMemberSince,
   getArchetypeColor,
-  getInitials,
   type MemberProfile,
 } from '@/stores';
+import { MemberAvatar } from '@/components/ui/MemberAvatar';
 import { useMemberDirectory } from '../services/memberService';
 import { trackEvent } from '../utils/analytics';
 
@@ -315,48 +314,6 @@ function Pagination({
 }
 
 // ============================================================================
-// Member Avatar
-// ============================================================================
-
-interface MemberAvatarProps {
-  member: MemberProfile;
-  size?: 'sm' | 'md' | 'lg';
-}
-
-function MemberAvatar({ member, size = 'md' }: MemberAvatarProps): React.ReactElement {
-  const sizeClasses = {
-    sm: 'h-8 w-8 text-xs',
-    md: 'h-12 w-12 text-sm',
-    lg: 'h-20 w-20 text-xl',
-  };
-
-  if (member.avatar) {
-    return (
-      <img
-        src={member.avatar}
-        alt={`${member.displayName}'s avatar`}
-        className={`${sizeClasses[size]} rounded-full object-cover`}
-      />
-    );
-  }
-
-  return (
-    <div
-      className={`
-        ${sizeClasses[size]}
-        rounded-full
-        bg-gradient-to-br from-teal-400 to-teal-600
-        flex items-center justify-center
-        text-white font-medium
-      `}
-      aria-label={`${member.displayName}'s initials`}
-    >
-      {getInitials(member.displayName)}
-    </div>
-  );
-}
-
-// ============================================================================
 // Bio Snippet Helper
 // ============================================================================
 
@@ -375,23 +332,21 @@ function truncateBio(bio: string | undefined, maxLength: number = 80): string | 
 
 interface MemberCardProps {
   member: MemberProfile;
-  onClick: () => void;
   isCurrentUser?: boolean;
 }
 
 function MemberCard({
   member,
-  onClick,
   isCurrentUser,
 }: MemberCardProps): React.ReactElement {
   const archetypeColorClass = member.archetype ? getArchetypeColor(member.archetype) : '';
   const bioSnippet = truncateBio(member.bio, 80);
 
   return (
-    <button
-      onClick={onClick}
+    <Link
+      to={`/members/${member.principal}`}
       className="
-        w-full p-4 text-left
+        block w-full p-4 text-left
         bg-white border border-gray-200 rounded-lg
         hover:border-teal-300 hover:shadow-md
         focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2
@@ -400,7 +355,7 @@ function MemberCard({
     >
       {/* Header with avatar and name */}
       <div className="flex items-start gap-3 mb-3">
-        <MemberAvatar member={member} size="md" />
+        <MemberAvatar displayName={member.displayName} avatar={member.avatar} size="md" />
         <div className="flex-1 min-w-0">
           <h3 className="font-medium text-gray-900 truncate">
             {member.displayName}
@@ -431,149 +386,7 @@ function MemberCard({
 
       {/* Bio snippet (truncated at 80 chars) */}
       {bioSnippet && <p className="text-sm text-gray-600 line-clamp-2 mb-2">{bioSnippet}</p>}
-
-      {/* Contact button — disabled with "Coming soon" tooltip */}
-      <button
-        disabled
-        title="Contact requests coming soon"
-        aria-disabled="true"
-        className="
-          mt-2 inline-flex items-center gap-1 px-2 py-1
-          text-xs font-medium text-gray-400
-          bg-gray-100 rounded
-          opacity-50 cursor-not-allowed
-        "
-        onClick={(e) => e.stopPropagation()}
-      >
-        Contact
-      </button>
-    </button>
-  );
-}
-
-// ============================================================================
-// Member Detail Modal
-// ============================================================================
-
-interface MemberDetailProps {
-  member: MemberProfile;
-  onClose: () => void;
-  isCurrentUser?: boolean;
-}
-
-function MemberDetail({
-  member,
-  onClose,
-  isCurrentUser,
-}: MemberDetailProps): React.ReactElement {
-  const archetypeColorClass = member.archetype ? getArchetypeColor(member.archetype) : '';
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="member-detail-title"
-    >
-      <div
-        className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="p-6 pb-4 border-b border-gray-100">
-          <div className="flex items-start gap-4">
-            <MemberAvatar member={member} size="lg" />
-            <div className="flex-1">
-              <h2 id="member-detail-title" className="text-xl font-semibold text-gray-900">
-                {member.displayName}
-                {isCurrentUser && (
-                  <span className="ml-2 text-sm text-teal-600 font-normal">(You)</span>
-                )}
-              </h2>
-              <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
-                <Calendar className="h-4 w-4" />
-                {formatMemberSince(member.joinDate)}
-              </p>
-              {member.archetype && (
-                <span
-                  className={`
-                  inline-flex items-center gap-1 px-2 py-1 mt-2
-                  text-xs font-medium rounded-full
-                  ${archetypeColorClass}
-                `}
-                >
-                  <Shield className="h-3 w-3" />
-                  {member.archetype}
-                </span>
-              )}
-            </div>
-            <button
-              onClick={onClose}
-              className="
-                p-2 text-gray-400 hover:text-gray-600
-                rounded-full hover:bg-gray-100
-                focus:outline-none focus:ring-2 focus:ring-teal-500
-              "
-              aria-label="Close"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Body */}
-        <div className="p-6 space-y-4">
-          {/* Full bio */}
-          {member.bio && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-1">About</h3>
-              <p className="text-gray-600">{member.bio}</p>
-            </div>
-          )}
-
-          {/* Edit Profile for own profile */}
-          {isCurrentUser && (
-            <div className="pt-4 border-t border-gray-100">
-              <Link
-                to="/settings?tab=privacy"
-                className="
-                  w-full inline-flex items-center justify-center gap-2 px-4 py-2
-                  text-sm font-medium text-white
-                  bg-teal-600 hover:bg-teal-700
-                  rounded-md
-                  focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2
-                  transition-colors duration-150
-                "
-              >
-                <Settings className="h-4 w-4" />
-                Edit Profile Settings
-              </Link>
-            </div>
-          )}
-
-          {/* Contact button — disabled with "Coming soon" tooltip */}
-          {!isCurrentUser && (
-            <div className="pt-4 border-t border-gray-100">
-              <button
-                disabled
-                title="Contact requests coming soon"
-                aria-disabled="true"
-                className="
-                  w-full inline-flex items-center justify-center gap-2 px-4 py-2
-                  text-sm font-medium text-gray-400
-                  bg-gray-100 rounded-md
-                  opacity-50 cursor-not-allowed
-                "
-              >
-                Send Contact Request
-              </button>
-              <p className="text-xs text-gray-400 text-center mt-1">Coming soon</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
+    </Link>
   );
 }
 
@@ -597,7 +410,6 @@ export function MemberDirectory({
     memberState,
     filteredMembers,
     searchQuery,
-    selectedMember,
     currentPage,
     totalPages,
     hasMore,
@@ -608,7 +420,6 @@ export function MemberDirectory({
     prevPage,
     setSearch,
     clearSearch,
-    selectMember,
   } = useMemberDirectory();
 
   // Track when component loads
@@ -634,18 +445,6 @@ export function MemberDirectory({
       });
     }
   }, [searchQuery, filteredMembers.length]);
-
-  // Handle member selection
-  const handleMemberClick = useCallback(
-    (member: MemberProfile) => {
-      selectMember(member);
-      trackEvent('member_profile_viewed', {
-        member_id: member.principal,
-        has_archetype: !!member.archetype,
-      });
-    },
-    [selectMember]
-  );
 
   // Loading state
   if (isLoading && !memberState.lastUpdated) {
@@ -744,7 +543,6 @@ export function MemberDirectory({
               <MemberCard
                 key={member.principal}
                 member={member}
-                onClick={() => handleMemberClick(member)}
                 isCurrentUser={userPrincipal != null && member.principal === userPrincipal}
               />
             ))}
@@ -762,14 +560,6 @@ export function MemberDirectory({
         </>
       )}
 
-      {/* Member detail modal */}
-      {selectedMember && (
-        <MemberDetail
-          member={selectedMember}
-          onClose={() => selectMember(null)}
-          isCurrentUser={userPrincipal != null && selectedMember.principal === userPrincipal}
-        />
-      )}
     </div>
   );
 }
