@@ -49,6 +49,9 @@ const EscrowViewPage = lazy(() => import('./pages/EscrowViewPage'));
 // Member Directory
 const MemberDirectoryPage = lazy(() => import('./pages/MemberDirectoryPage'));
 
+// Unsubscribe (public page - no auth required)
+const Unsubscribe = lazy(() => import('./pages/Unsubscribe'));
+
 // Loading fallback for lazy-loaded routes
 function PageLoader() {
   return (
@@ -67,6 +70,7 @@ export default function App() {
           <Routes>
             {/* Public routes - no authentication required */}
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
             <Route path="/login" element={
               <LoginRedirect
                 loginUrl={`${import.meta.env.VITE_FOUNDERY_OS_URL || 'http://127.0.0.1:5174'}/login`}
