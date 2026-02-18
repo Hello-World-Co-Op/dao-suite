@@ -25,7 +25,7 @@ import {
   ArrowLeft,
   Trash2,
 } from 'lucide-react';
-import { NotificationSettings } from '@/features/settings/components/NotificationSettings';
+import { NotificationPreferences } from '@/components/settings/NotificationPreferences';
 import { VisibilitySettings } from '@/components/VisibilitySettings';
 
 const log = createLogger('Settings');
@@ -708,7 +708,7 @@ export default function Settings() {
 
           {/* Notifications Tab */}
           <TabsContent value="notifications">
-            <NotificationSettings />
+            <NotificationPreferences />
           </TabsContent>
 
           {/* Privacy Tab */}
