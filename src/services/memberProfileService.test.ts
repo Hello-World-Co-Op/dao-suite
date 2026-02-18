@@ -87,6 +87,19 @@ describe('memberProfileService', () => {
       );
     });
 
+    it('falls back to "Expired" when membership_status is an unrecognized value', async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ ...mockResponse, membership_status: 'Unknown' }),
+      });
+
+      const result = await fetchExtendedProfile('abc-def-principal');
+
+      expect(result.success).toBe(true);
+      expect(result.profile!.membershipStatus).toBe('Expired');
+    });
+
     it('returns notFound: true on 404', async () => {
       fetchMock.mockResolvedValueOnce({
         ok: false,

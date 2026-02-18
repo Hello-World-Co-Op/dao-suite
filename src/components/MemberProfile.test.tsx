@@ -155,6 +155,25 @@ describe('MemberProfile', () => {
 
       expect(screen.getByText('A'.repeat(120) + '...')).toBeInTheDocument();
     });
+
+    it('renders at most 5 blog posts when more than 5 are provided', () => {
+      const posts = Array.from({ length: 7 }, (_, i) => ({
+        id: i + 1,
+        title: `Post Number ${i + 1}`,
+        slug: `post-${i + 1}`,
+        excerpt: null,
+        publishedAt: null,
+        categories: [],
+      }));
+      const profile = createMockProfile({ blogPosts: posts, blogPostCount: 7 });
+      renderProfile({ profile });
+
+      // Only the first 5 posts should be rendered
+      expect(screen.getByText('Post Number 1')).toBeInTheDocument();
+      expect(screen.getByText('Post Number 5')).toBeInTheDocument();
+      expect(screen.queryByText('Post Number 6')).not.toBeInTheDocument();
+      expect(screen.queryByText('Post Number 7')).not.toBeInTheDocument();
+    });
   });
 
   describe('Contribution Badges Placeholder (AC6)', () => {

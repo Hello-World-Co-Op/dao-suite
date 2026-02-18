@@ -166,7 +166,7 @@ export function MemberProfile({
                 {profile.blogPosts.slice(0, 5).map((post) => (
                   <li key={post.id} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
                     <a
-                      href={`${marketingBaseUrl}/blog/${post.slug}`}
+                      href={`${marketingBaseUrl}/blog/${encodeURIComponent(post.slug)}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-teal-600 hover:text-teal-700 font-medium hover:underline"
@@ -188,9 +188,9 @@ export function MemberProfile({
                           })}
                         </span>
                       )}
-                      {post.categories.map((cat) => (
+                      {post.categories.map((cat, catIdx) => (
                         <span
-                          key={cat}
+                          key={`${cat}-${catIdx}`}
                           className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600"
                         >
                           {cat}
@@ -205,7 +205,7 @@ export function MemberProfile({
             )}
 
             {/* Contribution badges placeholder (AC6) */}
-            <div className="mt-4 opacity-50 cursor-not-allowed" aria-disabled="true">
+            <div className="mt-4 opacity-50" aria-hidden="true">
               <h4 className="text-sm font-medium text-gray-400 mb-1">Contribution Badges</h4>
               <p className="text-xs text-gray-400">Coming soon</p>
             </div>

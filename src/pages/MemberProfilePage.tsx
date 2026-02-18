@@ -162,15 +162,6 @@ export default function MemberProfilePage() {
       setProfile(result.profile);
       setIsProfileLoading(false);
 
-      // Track profile view on successful load
-      if (!hasTrackedView.current) {
-        hasTrackedView.current = true;
-        trackEvent('member_profile_viewed', {
-          member_principal: principal,
-          is_own_profile: isOwnProfile,
-        });
-      }
-
       // Fetch governance stats after profile resolves (AC8)
       setIsGovernanceLoading(true);
       const govResult = await fetchGovernanceStats(principal);
@@ -202,6 +193,19 @@ export default function MemberProfilePage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [validatedPrincipal]);
+
+  // Track profile view once profile is loaded and icPrincipal is known.
+  // Separated from loadProfile to avoid capturing a stale isOwnProfile
+  // value from before the auth session resolves.
+  useEffect(() => {
+    if (profile && validatedPrincipal && !hasTrackedView.current) {
+      hasTrackedView.current = true;
+      trackEvent('member_profile_viewed', {
+        member_principal: validatedPrincipal,
+        is_own_profile: isOwnProfile,
+      });
+    }
+  }, [profile, validatedPrincipal, isOwnProfile]);
 
   // Retry handler
   const handleRetry = async () => {

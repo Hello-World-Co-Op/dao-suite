@@ -93,6 +93,16 @@ interface GovernanceStatsResponse {
 // Helpers
 // ============================================================================
 
+const VALID_MEMBERSHIP_STATUSES = ['Active', 'Registered', 'Expired', 'Revoked'] as const;
+
+function toMembershipStatus(raw: string): ExtendedMemberProfile['membershipStatus'] {
+  if ((VALID_MEMBERSHIP_STATUSES as readonly string[]).includes(raw)) {
+    return raw as ExtendedMemberProfile['membershipStatus'];
+  }
+  // Fallback: treat unknown statuses as Expired to show the correct badge colour
+  return 'Expired';
+}
+
 function mapBlogPost(post: BlogPostResponse): BlogPostSummary {
   return {
     id: post.id,
@@ -113,7 +123,7 @@ function mapExtendedProfile(data: ExtendedProfileResponse): ExtendedMemberProfil
     bio: data.bio,
     joinDate: data.join_date,
     isActive: data.is_active,
-    membershipStatus: data.membership_status as ExtendedMemberProfile['membershipStatus'],
+    membershipStatus: toMembershipStatus(data.membership_status),
     expirationDate: data.expiration_date,
     blogPosts: (data.blog_posts || []).map(mapBlogPost),
     blogPostCount: data.blog_post_count,
