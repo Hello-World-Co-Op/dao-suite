@@ -405,7 +405,7 @@ export default function Settings() {
     try {
       // Use auth-service removeOtherDevices to revoke all devices and sessions except current
       // NOTE: accessToken is in httpOnly cookie, not available to JS.
-      // This call will fail until BL-031 adds oracle-bridge proxy endpoint.
+      // This call will fail until oracle-bridge proxy endpoint is added (future backlog).
       const removedCount = await authService.removeOtherDevices('');
       setDeviceMessage({
         type: 'success',

@@ -8,7 +8,7 @@
  * ACs: 5, 7, 11
  */
 
-// BL-031: Access token is in httpOnly cookie, unavailable to JS.
+// Future: Access token is in httpOnly cookie, unavailable to JS.
 // Use oracle-bridge proxy when available. getAccessToken() was removed in BL-030.2.
 
 // Environment configuration
@@ -417,7 +417,7 @@ const mockRequestData = new Map<string, GenerateProposalRequest>();
  * Get authorization headers for API calls
  */
 function getAuthHeaders(): HeadersInit {
-  // BL-031: Access token is in httpOnly cookie, unavailable to JS. Use oracle-bridge proxy when available.
+  // Future: Access token is in httpOnly cookie, unavailable to JS. Use oracle-bridge proxy when available.
   const token: string | null = null;
   return {
     'Content-Type': 'application/json',
@@ -485,7 +485,7 @@ export async function generateProposal(
   });
 
   try {
-    // BL-031: Access token is in httpOnly cookie, unavailable to JS. Use oracle-bridge proxy when available.
+    // Future: Access token is in httpOnly cookie, unavailable to JS. Use oracle-bridge proxy when available.
     const token: string | null = null;
     const response = await fetch(`${THINK_TANK_API_URL}/proposals/generate`, {
       method: 'POST',

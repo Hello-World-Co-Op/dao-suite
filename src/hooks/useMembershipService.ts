@@ -144,10 +144,10 @@ export function useMembershipService() {
         // NOTE: Direct-to-canister _with_session calls require a raw access token,
         // which is only available in the httpOnly cookie (not accessible to JS).
         // These calls will fall through to mock data until oracle-bridge proxy
-        // endpoints are added in BL-031. The userId is available for future use.
+        // endpoints are added (future backlog). The userId is available for future use.
         const userId = user?.userId;
         if (!userId) { throw new Error('No user session found'); }
-        // accessToken is intentionally not available here (httpOnly cookie — BL-031)
+        // accessToken is intentionally not available here (httpOnly cookie — needs oracle-bridge proxy)
         const accessToken: string | undefined = undefined;
         if (!accessToken) { throw new Error('No access token found in session'); }
 
@@ -172,7 +172,7 @@ export function useMembershipService() {
       try {
         // NOTE: Direct-to-canister _with_session calls require a raw access token,
         // which is only available in the httpOnly cookie (not accessible to JS).
-        // BL-031: Replace with oracle-bridge proxy endpoint call when available.
+        // Future: Replace with oracle-bridge proxy endpoint call when available.
         const userId = user?.userId;
         if (!userId) { throw new Error('No user session found'); }
         const accessToken: string | undefined = undefined;
@@ -222,7 +222,7 @@ export function useMembershipService() {
       try {
         // NOTE: Direct-to-canister _with_session calls require a raw access token,
         // which is only available in the httpOnly cookie (not accessible to JS).
-        // BL-031: Replace with oracle-bridge proxy endpoint call when available.
+        // Future: Replace with oracle-bridge proxy endpoint call when available.
         const userId = user?.userId;
         if (!userId) { throw new Error('No user session found'); }
         const accessToken: string | undefined = undefined;
@@ -249,7 +249,7 @@ export function useMembershipService() {
       try {
         // NOTE: Direct-to-canister _with_session calls require a raw access token,
         // which is only available in the httpOnly cookie (not accessible to JS).
-        // BL-031: Replace with oracle-bridge proxy endpoint call when available.
+        // Future: Replace with oracle-bridge proxy endpoint call when available.
         const userId = user?.userId;
         if (!userId) { throw new Error('No user session found'); }
         const accessToken: string | undefined = undefined;

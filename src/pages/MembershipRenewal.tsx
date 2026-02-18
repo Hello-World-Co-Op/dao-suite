@@ -43,7 +43,7 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 }
 
 export default function MembershipRenewal() {
-  const { user: _authUser } = useAuth(); // userId available for BL-031 analytics enhancement
+  const { user: _authUser } = useAuth(); // userId available for future analytics enhancement
   const membershipService = useMembershipService();
 
   const [loading, setLoading] = useState(true);
@@ -75,8 +75,8 @@ export default function MembershipRenewal() {
       try {
         // For email/password authentication, we use the anonymous principal for canister calls.
         // The backend will identify the user by their session.
-        // Service calls (_with_session) fall through to mock data until BL-031
-        // adds oracle-bridge proxy endpoints — this is intentional (see Dev Notes).
+        // Service calls (_with_session) fall through to mock data until oracle-bridge
+        // proxy endpoints are added — this is intentional (see Dev Notes).
         const principal = Principal.anonymous();
         setUserPrincipal(principal);
 

@@ -22,7 +22,7 @@ export function CreateProposalPage() {
   const navigate = useNavigate();
   const params = useParams<{ draftId?: string }>();
   const { isAuthenticated, user } = useAuth();
-  const principal = user?.userId || 'mock-principal-id';
+  const principal = user?.userId || '';
   const { isActiveMember, isLoading: isMembershipLoading } = useMembership();
   const [showVerificationError, setShowVerificationError] = useState(false);
 

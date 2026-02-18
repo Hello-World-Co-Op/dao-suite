@@ -188,7 +188,7 @@ export function useTreasuryService() {
       try {
         // NOTE: Direct-to-canister _with_session calls require a raw access token,
         // which is only available in the httpOnly cookie (not accessible to JS).
-        // BL-031: Replace with oracle-bridge proxy endpoint call when available.
+        // Future: Replace with oracle-bridge proxy endpoint call when available.
         // The mock fallback path below is the current behavior and is intentional.
         const userId = user?.userId;
         if (!userId) { throw new Error('No user session found'); }
@@ -279,7 +279,7 @@ export function useTreasuryService() {
       try {
         // NOTE: Direct-to-canister _with_session calls require a raw access token,
         // which is only available in the httpOnly cookie (not accessible to JS).
-        // BL-031: Replace with oracle-bridge proxy endpoint call when available.
+        // Future: Replace with oracle-bridge proxy endpoint call when available.
         // The mock fallback path below is the current behavior and is intentional.
         const userId = user?.userId;
         if (!userId) { throw new Error('No user session found'); }
