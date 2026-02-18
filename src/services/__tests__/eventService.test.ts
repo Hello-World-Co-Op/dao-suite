@@ -57,13 +57,13 @@ describe('eventService', () => {
         json: () => Promise.resolve({ error: 'Unauthorized' }),
       });
 
-      await expect(listEvents()).rejects.toThrow(EventApiError);
-      await expect(
-        listEvents().catch((e) => {
-          expect(e.status).toBe(401);
-          throw e;
-        })
-      ).rejects.toThrow();
+      try {
+        await listEvents();
+        expect.fail('Should have thrown');
+      } catch (e) {
+        expect(e).toBeInstanceOf(EventApiError);
+        expect((e as EventApiError).status).toBe(401);
+      }
     });
 
     it('throws EventApiError on 500 response', async () => {
@@ -73,13 +73,13 @@ describe('eventService', () => {
         json: () => Promise.resolve({ error: 'Internal server error' }),
       });
 
-      await expect(listEvents()).rejects.toThrow(EventApiError);
-      await expect(
-        listEvents().catch((e) => {
-          expect(e.status).toBe(500);
-          throw e;
-        })
-      ).rejects.toThrow();
+      try {
+        await listEvents();
+        expect.fail('Should have thrown');
+      } catch (e) {
+        expect(e).toBeInstanceOf(EventApiError);
+        expect((e as EventApiError).status).toBe(500);
+      }
     });
   });
 

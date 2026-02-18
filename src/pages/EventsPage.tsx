@@ -91,10 +91,18 @@ export default function EventsPage() {
             : e
         )
       );
-      // Update selectedEvent if open
-      setSelectedEvent((prev) =>
-        prev?.id === eventId ? { ...prev, rsvp_status: response.status } : prev
-      );
+      // Update selectedEvent if open (sync both rsvp_status AND attendee_count)
+      setSelectedEvent((prev) => {
+        if (!prev || prev.id !== eventId) return prev;
+        const wasGoing = prev.rsvp_status === 'going';
+        const nowGoing = response.status === 'going';
+        const countDelta = nowGoing && !wasGoing ? 1 : !nowGoing && wasGoing ? -1 : 0;
+        return {
+          ...prev,
+          rsvp_status: response.status,
+          attendee_count: Math.max(0, prev.attendee_count + countDelta),
+        };
+      });
     } catch (e) {
       if (e instanceof EventApiError && e.status === 409) {
         setRsvpError(
@@ -130,9 +138,16 @@ export default function EventsPage() {
             : e
         )
       );
-      setSelectedEvent((prev) =>
-        prev?.id === eventId ? { ...prev, rsvp_status: null } : prev
-      );
+      // Update selectedEvent if open (sync rsvp_status AND attendee_count)
+      setSelectedEvent((prev) => {
+        if (!prev || prev.id !== eventId) return prev;
+        const wasGoing = prev.rsvp_status === 'going';
+        return {
+          ...prev,
+          rsvp_status: null,
+          attendee_count: wasGoing ? Math.max(0, prev.attendee_count - 1) : prev.attendee_count,
+        };
+      });
     } catch (e) {
       setRsvpError(
         e instanceof Error ? e.message : 'Failed to remove RSVP'
