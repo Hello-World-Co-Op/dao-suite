@@ -89,6 +89,8 @@ export default function App() {
               <ProtectedRoute
                 loginUrl={`${import.meta.env.VITE_FOUNDERY_OS_URL || 'http://127.0.0.1:5174'}/login`}
                 redirectBehavior="external"
+                requireIILinked
+                linkIdentityUrl={`${import.meta.env.VITE_MARKETING_URL || 'https://www.helloworlddao.com'}/link-identity`}
               >
                 <AppLayout />
               </ProtectedRoute>
