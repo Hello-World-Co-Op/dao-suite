@@ -74,7 +74,7 @@ const IC_HOST = import.meta.env.VITE_IC_HOST || 'https://ic0.app';
  * Check if we're in mock/development mode
  */
 function isMockMode(): boolean {
-  return !DOM_TOKEN_CANISTER_ID || import.meta.env.DEV;
+  return !DOM_TOKEN_CANISTER_ID;
 }
 
 /**

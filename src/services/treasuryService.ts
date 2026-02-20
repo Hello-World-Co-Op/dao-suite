@@ -10,6 +10,8 @@
 
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { useStore } from '@nanostores/react';
+import { HttpAgent, Actor } from '@dfinity/agent';
+import { IDL } from '@dfinity/candid';
 import {
   $treasury,
   $treasuryLoading,
@@ -68,11 +70,65 @@ export interface TreasuryServiceState {
 // Helpers
 // ============================================================================
 
+/** IC host for agent connections */
+const IC_HOST = import.meta.env.VITE_IC_HOST || 'https://ic0.app';
+
+/**
+ * Minimal inline IDL for treasury canister methods we need.
+ */
+const TokenTypeIDL = IDL.Variant({ ICP: IDL.Null, DOM: IDL.Null });
+const PayoutStatusIDL = IDL.Variant({
+  Proposed: IDL.Null,
+  Approved: IDL.Null,
+  Executed: IDL.Null,
+  Failed: IDL.Null,
+});
+const TreasuryBalanceIDL = IDL.Record({
+  icp_balance: IDL.Nat,
+  dom_balance: IDL.Nat,
+  pending_payouts_icp: IDL.Nat,
+  pending_payouts_dom: IDL.Nat,
+  active_escrows_icp: IDL.Nat,
+  active_escrows_dom: IDL.Nat,
+});
+const PayoutIDL = IDL.Record({
+  id: IDL.Nat64,
+  to: IDL.Principal,
+  amount: IDL.Nat,
+  reason: IDL.Text,
+  token_type: TokenTypeIDL,
+  status: PayoutStatusIDL,
+  approved_by: IDL.Vec(IDL.Principal),
+  proposed_at: IDL.Nat64,
+  executed_at: IDL.Opt(IDL.Nat64),
+  tx_id: IDL.Opt(IDL.Text),
+});
+const treasuryIdl = IDL.Service({
+  // get_treasury_balance is NOT a query in the .did — it's an update call
+  get_treasury_balance: IDL.Func(
+    [],
+    [IDL.Variant({ Ok: TreasuryBalanceIDL, Err: IDL.Text })],
+    [],
+  ),
+  list_payouts: IDL.Func(
+    [IDL.Opt(PayoutStatusIDL)],
+    [IDL.Vec(PayoutIDL)],
+    ['query'],
+  ),
+});
+
+/**
+ * Extract the key from a Candid variant object, e.g. { ICP: null } → 'ICP'
+ */
+function extractVariant(variant: Record<string, unknown>): string {
+  return Object.keys(variant)[0];
+}
+
 /**
  * Check if we're in mock/development mode
  */
 function isMockMode(): boolean {
-  return !TREASURY_CANISTER_ID || import.meta.env.DEV;
+  return !TREASURY_CANISTER_ID;
 }
 
 /**
@@ -174,56 +230,61 @@ async function fetchBalanceFromCanister(): Promise<TreasuryBalance> {
     return mockGetTreasuryBalance();
   }
 
-  // TODO: Replace with actual IC Agent call when @dfinity/agent is configured
-  // const agent = new HttpAgent({ host: IC_HOST });
-  // const actor = Actor.createActor(treasuryIdlFactory, {
-  //   agent,
-  //   canisterId: TREASURY_CANISTER_ID,
-  // });
-  // const result = await actor.get_treasury_balance();
-  // if ('Err' in result) throw new Error(result.Err);
-  // return {
-  //   icpBalance: result.Ok.icp_balance,
-  //   domBalance: result.Ok.dom_balance,
-  //   pendingPayoutsIcp: result.Ok.pending_payouts_icp,
-  //   pendingPayoutsDom: result.Ok.pending_payouts_dom,
-  //   activeEscrowsIcp: result.Ok.active_escrows_icp,
-  //   activeEscrowsDom: result.Ok.active_escrows_dom,
-  // };
+  const agent = HttpAgent.createSync({ host: IC_HOST });
+  const actor = Actor.createActor(() => treasuryIdl, {
+    agent,
+    canisterId: TREASURY_CANISTER_ID,
+  });
 
-  // For now, use mock
-  return mockGetTreasuryBalance();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = (await actor.get_treasury_balance()) as any;
+  if ('Err' in result) throw new Error(result.Err as string);
+
+  const ok = result.Ok;
+  return {
+    icpBalance: ok.icp_balance as bigint,
+    domBalance: ok.dom_balance as bigint,
+    pendingPayoutsIcp: ok.pending_payouts_icp as bigint,
+    pendingPayoutsDom: ok.pending_payouts_dom as bigint,
+    activeEscrowsIcp: ok.active_escrows_icp as bigint,
+    activeEscrowsDom: ok.active_escrows_dom as bigint,
+  };
 }
 
 /**
- * Fetch recent transactions from canister
+ * Fetch recent transactions from canister via list_payouts.
+ * Treasury has no get_recent_transactions — payouts are the primary transaction source.
  *
- * @param limit - Number of transactions to fetch
- * @returns List of recent transactions
+ * @param limit - Number of transactions to return
+ * @returns List of recent transactions mapped from Payout records
  */
 async function fetchTransactionsFromCanister(limit: number): Promise<Transaction[]> {
   if (isMockMode()) {
     return mockGetTransactions(limit);
   }
 
-  // TODO: Replace with actual IC Agent call when @dfinity/agent is configured
-  // const agent = new HttpAgent({ host: IC_HOST });
-  // const actor = Actor.createActor(treasuryIdlFactory, {
-  //   agent,
-  //   canisterId: TREASURY_CANISTER_ID,
-  // });
-  // const result = await actor.get_recent_transactions(limit);
-  // return result.map(tx => ({
-  //   id: tx.id,
-  //   type: tx.type as TransactionType,
-  //   amount: tx.amount,
-  //   timestamp: tx.timestamp,
-  //   description: tx.description || undefined,
-  //   tokenType: tx.token_type as 'DOM' | 'ICP',
-  // }));
+  const agent = HttpAgent.createSync({ host: IC_HOST });
+  const actor = Actor.createActor(() => treasuryIdl, {
+    agent,
+    canisterId: TREASURY_CANISTER_ID,
+  });
 
-  // For now, use mock
-  return mockGetTransactions(limit);
+  // Fetch all payouts (no status filter)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const payouts = (await actor.list_payouts([])) as any[];
+
+  // Map Payout → Transaction, sort newest first, apply limit
+  return payouts
+    .map((p) => ({
+      id: p.id.toString(),
+      type: 'payout' as const,
+      amount: p.amount as bigint,
+      timestamp: ((p.executed_at as bigint[])[0] ?? p.proposed_at) as bigint,
+      description: p.reason as string,
+      tokenType: extractVariant(p.token_type) as 'DOM' | 'ICP',
+    }))
+    .sort((a, b) => (b.timestamp > a.timestamp ? 1 : b.timestamp < a.timestamp ? -1 : 0))
+    .slice(0, limit);
 }
 
 // ============================================================================

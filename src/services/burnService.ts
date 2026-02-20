@@ -10,6 +10,8 @@
 
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { useStore } from '@nanostores/react';
+import { HttpAgent, Actor } from '@dfinity/agent';
+import { IDL } from '@dfinity/candid';
 import {
   $burnPool,
   $burnExecution,
@@ -75,11 +77,21 @@ export interface ExecuteBurnResult {
 // Helpers
 // ============================================================================
 
+/** IC host for agent connections */
+const IC_HOST = import.meta.env.VITE_IC_HOST || 'https://ic0.app';
+
+/**
+ * Minimal inline IDL for the total_burned query on dom-token canister.
+ */
+const totalBurnedIdl = IDL.Service({
+  total_burned: IDL.Func([], [IDL.Nat], ['query']),
+});
+
 /**
  * Check if we're in mock/development mode
  */
 function isMockMode(): boolean {
-  return !DOM_TOKEN_CANISTER_ID || import.meta.env.DEV;
+  return !DOM_TOKEN_CANISTER_ID;
 }
 
 /**
@@ -191,16 +203,12 @@ async function fetchTotalBurnedFromCanister(): Promise<bigint> {
     return mockGetTotalBurned();
   }
 
-  // TODO: Replace with actual IC Agent call when @dfinity/agent is configured
-  // const agent = new HttpAgent({ host: IC_HOST });
-  // const actor = Actor.createActor(domTokenIdlFactory, {
-  //   agent,
-  //   canisterId: DOM_TOKEN_CANISTER_ID,
-  // });
-  // return await actor.total_burned();
-
-  // For now, use mock
-  return mockGetTotalBurned();
+  const agent = HttpAgent.createSync({ host: IC_HOST });
+  const actor = Actor.createActor(() => totalBurnedIdl, {
+    agent,
+    canisterId: DOM_TOKEN_CANISTER_ID,
+  });
+  return (await actor.total_burned()) as bigint;
 }
 
 /**

@@ -10,6 +10,8 @@
 
 import { useEffect, useCallback, useState, useRef } from 'react';
 import { useStore } from '@nanostores/react';
+import { HttpAgent, Actor } from '@dfinity/agent';
+import { IDL } from '@dfinity/candid';
 import {
   $escrow,
   $selectedEscrow,
@@ -76,11 +78,136 @@ export interface FetchMilestonesResult {
 // Helpers
 // ============================================================================
 
+/** IC host for agent connections */
+const IC_HOST = import.meta.env.VITE_IC_HOST || 'https://ic0.app';
+
+/**
+ * Minimal inline IDL for escrow-related methods on the treasury canister.
+ */
+const TokenTypeIDL = IDL.Variant({ ICP: IDL.Null, DOM: IDL.Null });
+const EscrowStatusIDL = IDL.Variant({
+  Active: IDL.Null,
+  Released: IDL.Null,
+  Cancelled: IDL.Null,
+  Expired: IDL.Null,
+});
+const MilestoneStatusIDL = IDL.Variant({
+  Pending: IDL.Null,
+  Approved: IDL.Null,
+  Released: IDL.Null,
+  Disputed: IDL.Null,
+  Cancelled: IDL.Null,
+});
+const ReleaseAuthorityIDL = IDL.Variant({
+  Controller: IDL.Null,
+  Governance: IDL.Null,
+  SpecificPrincipal: IDL.Principal,
+});
+const MilestoneIDL = IDL.Record({
+  name: IDL.Text,
+  amount: IDL.Nat,
+  description: IDL.Text,
+  deadline: IDL.Nat64,
+  status: MilestoneStatusIDL,
+  dispute_reason: IDL.Opt(IDL.Text),
+  approved_at: IDL.Opt(IDL.Nat64),
+  released_at: IDL.Opt(IDL.Nat64),
+  tx_id: IDL.Opt(IDL.Text),
+});
+const EscrowIDL = IDL.Record({
+  id: IDL.Nat64,
+  recipient: IDL.Principal,
+  amount: IDL.Nat,
+  released_amount: IDL.Nat,
+  token_type: TokenTypeIDL,
+  conditions: IDL.Text,
+  release_authority: ReleaseAuthorityIDL,
+  status: EscrowStatusIDL,
+  created_at: IDL.Nat64,
+  expiry: IDL.Nat64,
+  milestones: IDL.Vec(MilestoneIDL),
+});
+const escrowIdl = IDL.Service({
+  list_escrows: IDL.Func(
+    [IDL.Opt(EscrowStatusIDL)],
+    [IDL.Vec(EscrowIDL)],
+    ['query'],
+  ),
+  get_escrow: IDL.Func(
+    [IDL.Nat64],
+    [IDL.Opt(EscrowIDL)],
+    ['query'],
+  ),
+  get_milestone_status: IDL.Func(
+    [IDL.Nat64],
+    [IDL.Variant({ Ok: IDL.Vec(MilestoneIDL), Err: IDL.Text })],
+    ['query'],
+  ),
+});
+
+/**
+ * Extract the key from a Candid variant object, e.g. { Active: null } → 'Active'
+ */
+function extractVariant(variant: Record<string, unknown>): string {
+  return Object.keys(variant)[0];
+}
+
+/**
+ * Map a Candid Milestone record to the store Milestone type
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapMilestone(m: any): Milestone {
+  return {
+    name: m.name as string,
+    description: m.description as string,
+    amount: m.amount as bigint,
+    deadline: m.deadline as bigint,
+    status: extractVariant(m.status) as Milestone['status'],
+    approved_at: (m.approved_at as bigint[])[0],
+    released_at: (m.released_at as bigint[])[0],
+    dispute_reason: (m.dispute_reason as string[])[0],
+    tx_id: (m.tx_id as string[])[0],
+  };
+}
+
+/**
+ * Map a Candid ReleaseAuthority variant to the store type.
+ * Candid: { Controller: null } | { Governance: null } | { SpecificPrincipal: Principal }
+ * Store:  { Controller: null } | { Governance: null } | { SpecificPrincipal: string }
+ */
+function mapReleaseAuthority(ra: Record<string, unknown>): Escrow['release_authority'] {
+  if ('SpecificPrincipal' in ra) {
+    return { SpecificPrincipal: (ra.SpecificPrincipal as { toText(): string }).toText() };
+  }
+  if ('Controller' in ra) return { Controller: null };
+  return { Governance: null };
+}
+
+/**
+ * Map a Candid Escrow record to the store Escrow type
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapEscrow(e: any): Escrow {
+  return {
+    id: e.id as bigint,
+    recipient: (e.recipient as { toText(): string }).toText(),
+    amount: e.amount as bigint,
+    released_amount: e.released_amount as bigint,
+    token_type: extractVariant(e.token_type) as Escrow['token_type'],
+    conditions: e.conditions as string,
+    release_authority: mapReleaseAuthority(e.release_authority as Record<string, unknown>),
+    status: extractVariant(e.status) as Escrow['status'],
+    created_at: e.created_at as bigint,
+    expiry: e.expiry as bigint,
+    milestones: (e.milestones as unknown[]).map(mapMilestone),
+  };
+}
+
 /**
  * Check if we're in mock/development mode
  */
 function isMockMode(): boolean {
-  return !TREASURY_CANISTER_ID || import.meta.env.DEV;
+  return !TREASURY_CANISTER_ID;
 }
 
 /**
@@ -185,17 +312,17 @@ async function fetchEscrowsFromCanister(userPrincipal: string): Promise<Escrow[]
     return mockListEscrows(userPrincipal);
   }
 
-  // TODO: Replace with actual IC Agent call when @dfinity/agent is configured
-  // const agent = new HttpAgent({ host: IC_HOST });
-  // const actor = Actor.createActor(treasuryIdlFactory, {
-  //   agent,
-  //   canisterId: TREASURY_CANISTER_ID,
-  // });
-  // const allEscrows = await actor.list_escrows([]);
-  // return allEscrows.filter(e => e.recipient.toText() === userPrincipal);
+  const agent = HttpAgent.createSync({ host: IC_HOST });
+  const actor = Actor.createActor(() => escrowIdl, {
+    agent,
+    canisterId: TREASURY_CANISTER_ID,
+  });
 
-  // For now, use mock
-  return mockListEscrows(userPrincipal);
+  // Fetch all escrows (no status filter), then filter client-side by recipient
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const raw = (await actor.list_escrows([])) as any[];
+  const all = raw.map(mapEscrow);
+  return all.filter((e) => e.recipient === userPrincipal);
 }
 
 /**
@@ -206,11 +333,17 @@ async function fetchEscrowFromCanister(escrowId: bigint): Promise<Escrow | null>
     return mockGetEscrow(escrowId);
   }
 
-  // TODO: Replace with actual IC Agent call
-  // const actor = ...
-  // return await actor.get_escrow(escrowId);
+  const agent = HttpAgent.createSync({ host: IC_HOST });
+  const actor = Actor.createActor(() => escrowIdl, {
+    agent,
+    canisterId: TREASURY_CANISTER_ID,
+  });
 
-  return mockGetEscrow(escrowId);
+  // Candid opt returns [] (none) or [value] (some)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = (await actor.get_escrow(escrowId)) as any[];
+  if (result.length === 0) return null;
+  return mapEscrow(result[0]);
 }
 
 /**
@@ -221,13 +354,16 @@ async function fetchMilestonesFromCanister(escrowId: bigint): Promise<Milestone[
     return mockGetMilestoneStatus(escrowId);
   }
 
-  // TODO: Replace with actual IC Agent call
-  // const actor = ...
-  // const result = await actor.get_milestone_status(escrowId);
-  // if ('Ok' in result) return result.Ok;
-  // throw new Error(result.Err);
+  const agent = HttpAgent.createSync({ host: IC_HOST });
+  const actor = Actor.createActor(() => escrowIdl, {
+    agent,
+    canisterId: TREASURY_CANISTER_ID,
+  });
 
-  return mockGetMilestoneStatus(escrowId);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = (await actor.get_milestone_status(escrowId)) as any;
+  if ('Err' in result) throw new Error(result.Err as string);
+  return (result.Ok as unknown[]).map(mapMilestone);
 }
 
 // ============================================================================
