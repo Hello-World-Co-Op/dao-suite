@@ -271,16 +271,16 @@ async function executeBurnOnCanister(amount: bigint): Promise<string> {
     canisterId: DOM_TOKEN_CANISTER_ID,
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = (await actor.icrc1_burn(amount)) as any;
+  const result = (await actor.icrc1_burn(amount)) as Record<string, unknown>;
   if ('Err' in result) {
     // Format the TransferError variant into a readable message
-    const errKey = Object.keys(result.Err)[0];
-    const errVal = result.Err[errKey];
+    const err = result.Err as Record<string, unknown>;
+    const errKey = Object.keys(err)[0];
+    const errVal = err[errKey];
     const detail = errVal === null ? '' : `: ${JSON.stringify(errVal)}`;
     throw new Error(`${errKey}${detail}`);
   }
-  return (result.Ok as bigint).toString();
+  return String(result.Ok);
 }
 
 // ============================================================================

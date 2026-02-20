@@ -155,14 +155,13 @@ function extractVariant(variant: Record<string, unknown>): string {
 /**
  * Map a Candid Milestone record to the store Milestone type
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapMilestone(m: any): Milestone {
+function mapMilestone(m: Record<string, unknown>): Milestone {
   return {
     name: m.name as string,
     description: m.description as string,
     amount: m.amount as bigint,
     deadline: m.deadline as bigint,
-    status: extractVariant(m.status) as Milestone['status'],
+    status: extractVariant(m.status as Record<string, unknown>) as Milestone['status'],
     approved_at: (m.approved_at as bigint[])[0],
     released_at: (m.released_at as bigint[])[0],
     dispute_reason: (m.dispute_reason as string[])[0],
@@ -186,20 +185,19 @@ function mapReleaseAuthority(ra: Record<string, unknown>): Escrow['release_autho
 /**
  * Map a Candid Escrow record to the store Escrow type
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapEscrow(e: any): Escrow {
+function mapEscrow(e: Record<string, unknown>): Escrow {
   return {
     id: e.id as bigint,
     recipient: (e.recipient as { toText(): string }).toText(),
     amount: e.amount as bigint,
     released_amount: e.released_amount as bigint,
-    token_type: extractVariant(e.token_type) as Escrow['token_type'],
+    token_type: extractVariant(e.token_type as Record<string, unknown>) as Escrow['token_type'],
     conditions: e.conditions as string,
     release_authority: mapReleaseAuthority(e.release_authority as Record<string, unknown>),
-    status: extractVariant(e.status) as Escrow['status'],
+    status: extractVariant(e.status as Record<string, unknown>) as Escrow['status'],
     created_at: e.created_at as bigint,
     expiry: e.expiry as bigint,
-    milestones: (e.milestones as unknown[]).map(mapMilestone),
+    milestones: (e.milestones as Record<string, unknown>[]).map(mapMilestone),
   };
 }
 
@@ -319,8 +317,7 @@ async function fetchEscrowsFromCanister(userPrincipal: string): Promise<Escrow[]
   });
 
   // Fetch all escrows (no status filter), then filter client-side by recipient
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const raw = (await actor.list_escrows([])) as any[];
+  const raw = (await actor.list_escrows([])) as Record<string, unknown>[];
   const all = raw.map(mapEscrow);
   return all.filter((e) => e.recipient === userPrincipal);
 }
@@ -340,8 +337,7 @@ async function fetchEscrowFromCanister(escrowId: bigint): Promise<Escrow | null>
   });
 
   // Candid opt returns [] (none) or [value] (some)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = (await actor.get_escrow(escrowId)) as any[];
+  const result = (await actor.get_escrow(escrowId)) as Record<string, unknown>[];
   if (result.length === 0) return null;
   return mapEscrow(result[0]);
 }
@@ -360,10 +356,9 @@ async function fetchMilestonesFromCanister(escrowId: bigint): Promise<Milestone[
     canisterId: TREASURY_CANISTER_ID,
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = (await actor.get_milestone_status(escrowId)) as any;
-  if ('Err' in result) throw new Error(result.Err as string);
-  return (result.Ok as unknown[]).map(mapMilestone);
+  const result = (await actor.get_milestone_status(escrowId)) as Record<string, unknown>;
+  if ('Err' in result) throw new Error(String(result.Err));
+  return (result.Ok as Record<string, unknown>[]).map(mapMilestone);
 }
 
 // ============================================================================

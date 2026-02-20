@@ -236,18 +236,17 @@ async function fetchBalanceFromCanister(): Promise<TreasuryBalance> {
     canisterId: TREASURY_CANISTER_ID,
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = (await actor.get_treasury_balance()) as any;
-  if ('Err' in result) throw new Error(result.Err as string);
+  const result = (await actor.get_treasury_balance()) as Record<string, Record<string, bigint>>;
+  if ('Err' in result) throw new Error(String(result.Err));
 
   const ok = result.Ok;
   return {
-    icpBalance: ok.icp_balance as bigint,
-    domBalance: ok.dom_balance as bigint,
-    pendingPayoutsIcp: ok.pending_payouts_icp as bigint,
-    pendingPayoutsDom: ok.pending_payouts_dom as bigint,
-    activeEscrowsIcp: ok.active_escrows_icp as bigint,
-    activeEscrowsDom: ok.active_escrows_dom as bigint,
+    icpBalance: ok.icp_balance,
+    domBalance: ok.dom_balance,
+    pendingPayoutsIcp: ok.pending_payouts_icp,
+    pendingPayoutsDom: ok.pending_payouts_dom,
+    activeEscrowsIcp: ok.active_escrows_icp,
+    activeEscrowsDom: ok.active_escrows_dom,
   };
 }
 
@@ -270,18 +269,17 @@ async function fetchTransactionsFromCanister(limit: number): Promise<Transaction
   });
 
   // Fetch all payouts (no status filter)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const payouts = (await actor.list_payouts([])) as any[];
+  const payouts = (await actor.list_payouts([])) as Record<string, unknown>[];
 
   // Map Payout → Transaction, sort newest first, apply limit
   return payouts
     .map((p) => ({
-      id: p.id.toString(),
+      id: String(p.id),
       type: 'payout' as const,
       amount: p.amount as bigint,
-      timestamp: ((p.executed_at as bigint[])[0] ?? p.proposed_at) as bigint,
+      timestamp: ((p.executed_at as bigint[])[0] ?? (p.proposed_at as bigint)) as bigint,
       description: p.reason as string,
-      tokenType: extractVariant(p.token_type) as 'DOM' | 'ICP',
+      tokenType: extractVariant(p.token_type as Record<string, unknown>) as 'DOM' | 'ICP',
     }))
     .sort((a, b) => (b.timestamp > a.timestamp ? 1 : b.timestamp < a.timestamp ? -1 : 0))
     .slice(0, limit);
