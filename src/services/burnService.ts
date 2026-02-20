@@ -12,6 +12,7 @@ import { useEffect, useCallback, useState, useRef } from 'react';
 import { useStore } from '@nanostores/react';
 import { HttpAgent, Actor } from '@dfinity/agent';
 import { IDL } from '@dfinity/candid';
+import { DelegationChain, DelegationIdentity, Ed25519KeyIdentity } from '@dfinity/identity';
 import {
   $burnPool,
   $burnExecution,
@@ -81,11 +82,47 @@ export interface ExecuteBurnResult {
 const IC_HOST = import.meta.env.VITE_IC_HOST || 'https://ic0.app';
 
 /**
- * Minimal inline IDL for the total_burned query on dom-token canister.
+ * Minimal inline IDL for dom-token canister methods we need.
  */
-const totalBurnedIdl = IDL.Service({
-  total_burned: IDL.Func([], [IDL.Nat], ['query']),
+const TransferErrorIDL = IDL.Variant({
+  BadFee: IDL.Record({ expected_fee: IDL.Nat }),
+  BadBurn: IDL.Record({ min_burn_amount: IDL.Nat }),
+  InsufficientFunds: IDL.Record({ balance: IDL.Nat }),
+  TooOld: IDL.Null,
+  CreatedInFuture: IDL.Record({ ledger_time: IDL.Nat64 }),
+  Duplicate: IDL.Record({ duplicate_of: IDL.Nat }),
+  TemporarilyUnavailable: IDL.Null,
+  GenericError: IDL.Record({ error_code: IDL.Nat, message: IDL.Text }),
 });
+const domTokenIdl = IDL.Service({
+  total_burned: IDL.Func([], [IDL.Nat], ['query']),
+  icrc1_burn: IDL.Func(
+    [IDL.Nat],
+    [IDL.Variant({ Ok: IDL.Nat, Err: TransferErrorIDL })],
+    [],
+  ),
+});
+
+/** sessionStorage keys written by useIILogin in @hello-world-co-op/auth */
+const II_DELEGATION_CHAIN_KEY = 'ii_delegation_chain';
+const II_SESSION_KEY_KEY = 'ii_session_key';
+
+/**
+ * Reconstruct an authenticated DelegationIdentity from sessionStorage.
+ * Returns null if II delegation is not available.
+ */
+function getAuthenticatedIdentity(): DelegationIdentity | null {
+  const chainJson = sessionStorage.getItem(II_DELEGATION_CHAIN_KEY);
+  const keyJson = sessionStorage.getItem(II_SESSION_KEY_KEY);
+  if (!chainJson || !keyJson) return null;
+  try {
+    const chain = DelegationChain.fromJSON(chainJson);
+    const key = Ed25519KeyIdentity.fromJSON(keyJson);
+    return DelegationIdentity.fromDelegation(key, chain);
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Check if we're in mock/development mode
@@ -204,7 +241,7 @@ async function fetchTotalBurnedFromCanister(): Promise<bigint> {
   }
 
   const agent = HttpAgent.createSync({ host: IC_HOST });
-  const actor = Actor.createActor(() => totalBurnedIdl, {
+  const actor = Actor.createActor(() => domTokenIdl, {
     agent,
     canisterId: DOM_TOKEN_CANISTER_ID,
   });
@@ -212,7 +249,8 @@ async function fetchTotalBurnedFromCanister(): Promise<bigint> {
 }
 
 /**
- * Execute burn on dom-token canister
+ * Execute burn on dom-token canister.
+ * Requires an authenticated II delegation in sessionStorage.
  *
  * @param amount - Amount to burn in e8s
  * @returns Transaction index on success
@@ -222,23 +260,27 @@ async function executeBurnOnCanister(amount: bigint): Promise<string> {
     return mockExecuteBurn(amount);
   }
 
-  // TODO: Replace with actual IC Agent call when @dfinity/agent is configured
-  // const agent = new HttpAgent({ host: IC_HOST });
-  // await agent.fetchRootKey(); // Only for local development
-  //
-  // const actor = Actor.createActor(domTokenIdlFactory, {
-  //   agent,
-  //   canisterId: DOM_TOKEN_CANISTER_ID,
-  // });
-  //
-  // const result = await actor.icrc1_burn({ amount });
-  // if ('Err' in result) {
-  //   throw new Error(JSON.stringify(result.Err));
-  // }
-  // return result.Ok.toString();
+  const identity = getAuthenticatedIdentity();
+  if (!identity) {
+    throw new Error('Internet Identity not connected. Please log in with II to burn tokens.');
+  }
 
-  // For now, use mock
-  return mockExecuteBurn(amount);
+  const agent = HttpAgent.createSync({ host: IC_HOST, identity });
+  const actor = Actor.createActor(() => domTokenIdl, {
+    agent,
+    canisterId: DOM_TOKEN_CANISTER_ID,
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = (await actor.icrc1_burn(amount)) as any;
+  if ('Err' in result) {
+    // Format the TransferError variant into a readable message
+    const errKey = Object.keys(result.Err)[0];
+    const errVal = result.Err[errKey];
+    const detail = errVal === null ? '' : `: ${JSON.stringify(errVal)}`;
+    throw new Error(`${errKey}${detail}`);
+  }
+  return (result.Ok as bigint).toString();
 }
 
 // ============================================================================
