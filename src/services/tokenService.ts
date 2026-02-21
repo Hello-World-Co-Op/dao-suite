@@ -90,6 +90,27 @@ const icrc1BalanceOfIdl = IDL.Service({
 });
 
 /**
+ * Create structured log entry
+ */
+function log(level: 'info' | 'warn' | 'error', message: string, data?: Record<string, unknown>) {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    service: 'TokenService',
+    level,
+    message,
+    ...data,
+  };
+
+  if (level === 'error') {
+    console.error(JSON.stringify(entry));
+  } else if (level === 'warn') {
+    console.warn(JSON.stringify(entry));
+  } else {
+    console.log(JSON.stringify(entry));
+  }
+}
+
+/**
  * Calculate exponential backoff delay
  */
 function getBackoffDelay(attempt: number): number {
@@ -124,6 +145,8 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
  * Mock balance fetch for development
  */
 async function mockGetBalance(principal: string): Promise<bigint> {
+  log('info', 'Mock balance fetch', { principal });
+
   // Simulate network delay
   await sleep(800);
 
@@ -161,6 +184,7 @@ async function fetchBalanceFromCanister(principal: string): Promise<bigint> {
   try {
     owner = Principal.fromText(principal);
   } catch {
+    log('warn', 'Invalid principal format, returning zero balance', { principal });
     return BigInt(0);
   }
 
@@ -185,6 +209,8 @@ async function fetchBalanceFromCanister(principal: string): Promise<bigint> {
  * @returns Result with success status and balance or error
  */
 export async function fetchTokenBalance(principal: string): Promise<FetchBalanceResult> {
+  log('info', 'Fetching token balance', { principal });
+
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
@@ -194,11 +220,28 @@ export async function fetchTokenBalance(principal: string): Promise<FetchBalance
       const balance = await withTimeout(fetchBalanceFromCanister(principal), REQUEST_TIMEOUT_MS);
 
       setTokenBalance(balance, principal);
+
+      log('info', 'Balance fetched successfully', {
+        principal,
+        balance: balance.toString(),
+        attempt,
+      });
+
       return { success: true, balance };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error('Unknown error');
+
+      log('warn', `Balance fetch attempt ${attempt + 1} failed`, {
+        principal,
+        error: lastError.message,
+        attempt,
+      });
+
+      // Don't retry on last attempt
       if (attempt < MAX_RETRY_ATTEMPTS - 1) {
-        await sleep(getBackoffDelay(attempt));
+        const backoffDelay = getBackoffDelay(attempt);
+        log('info', `Retrying after ${backoffDelay}ms`, { attempt });
+        await sleep(backoffDelay);
       }
     }
   }
@@ -206,7 +249,12 @@ export async function fetchTokenBalance(principal: string): Promise<FetchBalance
   // All retries failed
   const errorMessage = lastError?.message || 'Failed to fetch balance';
   setTokenBalanceError(errorMessage);
-  console.error(`TokenService: balance fetch failed — ${errorMessage}`);
+
+  log('error', 'Balance fetch failed after all retries', {
+    principal,
+    error: errorMessage,
+  });
+
   return { success: false, error: errorMessage };
 }
 
@@ -217,6 +265,8 @@ export async function fetchTokenBalance(principal: string): Promise<FetchBalance
  * @returns Result with success status
  */
 export async function refreshTokenBalance(principal: string): Promise<FetchBalanceResult> {
+  log('info', 'Manual balance refresh triggered', { principal });
+
   // Track analytics event
   trackEvent('token_balance_refreshed', { principal });
 
@@ -234,6 +284,7 @@ export function getBalanceState(): TokenBalanceState {
  * Clear balance (e.g., on logout)
  */
 export function clearBalance(): void {
+  log('info', 'Clearing token balance');
   clearTokenBalance();
 }
 

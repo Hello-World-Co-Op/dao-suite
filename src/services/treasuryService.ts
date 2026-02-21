@@ -132,6 +132,27 @@ function isMockMode(): boolean {
 }
 
 /**
+ * Create structured log entry
+ */
+function log(level: 'info' | 'warn' | 'error', message: string, data?: Record<string, unknown>) {
+  const entry = {
+    timestamp: new Date().toISOString(),
+    service: 'TreasuryService',
+    level,
+    message,
+    ...data,
+  };
+
+  if (level === 'error') {
+    console.error(JSON.stringify(entry));
+  } else if (level === 'warn') {
+    console.warn(JSON.stringify(entry));
+  } else {
+    console.log(JSON.stringify(entry));
+  }
+}
+
+/**
  * Calculate exponential backoff delay
  */
 function getBackoffDelay(attempt: number): number {
@@ -166,6 +187,8 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
  * Mock treasury balance fetch for development
  */
 async function mockGetTreasuryBalance(): Promise<TreasuryBalance> {
+  log('info', 'Mock treasury balance fetch');
+
   // Simulate network delay
   await sleep(600);
 
@@ -183,7 +206,9 @@ async function mockGetTreasuryBalance(): Promise<TreasuryBalance> {
 /**
  * Mock recent transactions fetch for development
  */
-async function mockGetTransactions(_limit: number): Promise<Transaction[]> {
+async function mockGetTransactions(limit: number): Promise<Transaction[]> {
+  log('info', 'Mock transactions fetch', { limit });
+
   // Simulate network delay
   await sleep(400);
 
@@ -270,6 +295,8 @@ async function fetchTransactionsFromCanister(limit: number): Promise<Transaction
  * @returns Result with success status and treasury data or error
  */
 export async function fetchTreasuryData(): Promise<FetchTreasuryResult> {
+  log('info', 'Fetching treasury data');
+
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
@@ -286,11 +313,28 @@ export async function fetchTreasuryData(): Promise<FetchTreasuryResult> {
       );
 
       setTreasuryData(balance, transactions);
+
+      log('info', 'Treasury data fetched successfully', {
+        domBalance: balance.domBalance.toString(),
+        icpBalance: balance.icpBalance.toString(),
+        transactionCount: transactions.length,
+        attempt,
+      });
+
       return { success: true, balance, transactions };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error('Unknown error');
+
+      log('warn', `Treasury fetch attempt ${attempt + 1} failed`, {
+        error: lastError.message,
+        attempt,
+      });
+
+      // Don't retry on last attempt
       if (attempt < MAX_RETRY_ATTEMPTS - 1) {
-        await sleep(getBackoffDelay(attempt));
+        const backoffDelay = getBackoffDelay(attempt);
+        log('info', `Retrying after ${backoffDelay}ms`, { attempt });
+        await sleep(backoffDelay);
       }
     }
   }
@@ -298,7 +342,11 @@ export async function fetchTreasuryData(): Promise<FetchTreasuryResult> {
   // All retries failed
   const errorMessage = lastError?.message || 'Failed to fetch treasury data';
   setTreasuryError(errorMessage);
-  console.error(`TreasuryService: fetch failed — ${errorMessage}`);
+
+  log('error', 'Treasury fetch failed after all retries', {
+    error: errorMessage,
+  });
+
   return { success: false, error: errorMessage };
 }
 
@@ -308,6 +356,8 @@ export async function fetchTreasuryData(): Promise<FetchTreasuryResult> {
  * @returns Result with success status
  */
 export async function refreshTreasuryData(): Promise<FetchTreasuryResult> {
+  log('info', 'Manual treasury refresh triggered');
+
   // Track analytics event
   trackEvent('treasury_refreshed', {});
 
@@ -325,6 +375,7 @@ export function getTreasuryState(): TreasuryState {
  * Clear treasury data (e.g., on logout)
  */
 export function clearTreasuryData(): void {
+  log('info', 'Clearing treasury data');
   clearTreasury();
 }
 
