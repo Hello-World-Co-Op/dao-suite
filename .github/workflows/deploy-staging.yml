@@ -78,6 +78,7 @@ jobs:
 
       - name: Build for staging
         env:
+          VITE_ENABLE_LOGGING: "true"
           VITE_IC_HOST: "https://ic0.app"
           VITE_DAO_FRONTEND_URL: "https://staging-portal.helloworlddao.com"
           VITE_FOUNDERY_OS_URL: ${{ vars.VITE_FOUNDERY_OS_URL || 'https://staging-foundery.helloworlddao.com' }}
