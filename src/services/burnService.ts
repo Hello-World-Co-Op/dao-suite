@@ -132,27 +132,6 @@ function isMockMode(): boolean {
 }
 
 /**
- * Create structured log entry
- */
-function log(level: 'info' | 'warn' | 'error', message: string, data?: Record<string, unknown>) {
-  const entry = {
-    timestamp: new Date().toISOString(),
-    service: 'BurnService',
-    level,
-    message,
-    ...data,
-  };
-
-  if (level === 'error') {
-    console.error(JSON.stringify(entry));
-  } else if (level === 'warn') {
-    console.warn(JSON.stringify(entry));
-  } else {
-    console.log(JSON.stringify(entry));
-  }
-}
-
-/**
  * Calculate exponential backoff delay
  */
 function getBackoffDelay(attempt: number): number {
@@ -204,7 +183,6 @@ let mockTxCounter = 1000;
  * Mock total burned fetch for development
  */
 async function mockGetTotalBurned(): Promise<bigint> {
-  log('info', 'Mock total_burned fetch');
   await sleep(500);
   return mockTotalBurned;
 }
@@ -213,7 +191,7 @@ async function mockGetTotalBurned(): Promise<bigint> {
  * Mock burn execution for development
  */
 async function mockExecuteBurn(amount: bigint): Promise<string> {
-  log('info', 'Mock icrc1_burn execution', { amount: amount.toString() });
+  void amount;
   await sleep(1500); // Simulate longer transaction time
 
   // Simulate occasional failure for testing
@@ -291,8 +269,6 @@ async function executeBurnOnCanister(amount: bigint): Promise<string> {
  * Fetch burn pool data with retry logic
  */
 export async function fetchBurnPoolData(): Promise<FetchBurnPoolResult> {
-  log('info', 'Fetching burn pool data');
-
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
@@ -302,36 +278,18 @@ export async function fetchBurnPoolData(): Promise<FetchBurnPoolResult> {
       const totalBurned = await withTimeout(fetchTotalBurnedFromCanister(), REQUEST_TIMEOUT_MS);
 
       setBurnPoolData(totalBurned);
-
-      log('info', 'Burn pool data fetched successfully', {
-        totalBurned: totalBurned.toString(),
-        attempt,
-      });
-
       return { success: true, totalBurned };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error('Unknown error');
-
-      log('warn', `Burn pool fetch attempt ${attempt + 1} failed`, {
-        error: lastError.message,
-        attempt,
-      });
-
       if (attempt < MAX_RETRY_ATTEMPTS - 1) {
-        const backoffDelay = getBackoffDelay(attempt);
-        log('info', `Retrying after ${backoffDelay}ms`, { attempt });
-        await sleep(backoffDelay);
+        await sleep(getBackoffDelay(attempt));
       }
     }
   }
 
   const errorMessage = lastError?.message || 'Failed to fetch burn pool data';
   setBurnPoolError(errorMessage);
-
-  log('error', 'Burn pool fetch failed after all retries', {
-    error: errorMessage,
-  });
-
+  console.error(`BurnService: pool fetch failed — ${errorMessage}`);
   return { success: false, error: errorMessage };
 }
 
@@ -342,14 +300,10 @@ export async function fetchBurnPoolData(): Promise<FetchBurnPoolResult> {
  * @returns Result with success status and transaction index
  */
 export async function executeBurn(amount: bigint): Promise<ExecuteBurnResult> {
-  log('info', 'Executing burn', { amount: amount.toString() });
-
   // Validate amount
   const balance = $tokenBalance.get().balance;
   const validationError = validateBurnAmount(amount, balance);
   if (validationError) {
-    log('warn', 'Burn validation failed', { error: validationError });
-
     trackEvent('burn_failed', {
       error_type: 'validation',
       error_message: validationError,
@@ -361,7 +315,6 @@ export async function executeBurn(amount: bigint): Promise<ExecuteBurnResult> {
   // Check for pending burn (idempotency)
   const pendingRecord = getPendingBurnRecord();
   if (pendingRecord) {
-    log('warn', 'Burn already pending', { id: pendingRecord.id });
     return { success: false, error: 'A burn is already in progress' };
   }
 
@@ -388,11 +341,6 @@ export async function executeBurn(amount: bigint): Promise<ExecuteBurnResult> {
     // Refresh burn pool total
     fetchBurnPoolData();
 
-    log('info', 'Burn executed successfully', {
-      txIndex,
-      amount: amount.toString(),
-    });
-
     // Track analytics
     trackEvent('burn_executed', {
       amount_bucket: getAmountBucket(amount),
@@ -406,11 +354,7 @@ export async function executeBurn(amount: bigint): Promise<ExecuteBurnResult> {
     // Update record as failed
     updateBurnRecordStatus(burnId, 'failed');
     setBurnExecutionError(errorMessage);
-
-    log('error', 'Burn execution failed', {
-      error: errorMessage,
-      amount: amount.toString(),
-    });
+    console.error(`BurnService: burn execution failed — ${errorMessage}`);
 
     // Track analytics
     trackEvent('burn_failed', {
@@ -426,7 +370,6 @@ export async function executeBurn(amount: bigint): Promise<ExecuteBurnResult> {
  * Refresh burn pool data (for manual refresh)
  */
 export async function refreshBurnPoolData(): Promise<FetchBurnPoolResult> {
-  log('info', 'Manual burn pool refresh triggered');
   return fetchBurnPoolData();
 }
 
@@ -448,7 +391,6 @@ export function getBurnExecutionState(): BurnExecutionState {
  * Clear burn pool data (e.g., on logout)
  */
 export function clearBurnData(): void {
-  log('info', 'Clearing burn data');
   clearBurnPool();
   resetBurnExecution();
 }

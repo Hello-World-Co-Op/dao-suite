@@ -209,27 +209,6 @@ function isMockMode(): boolean {
 }
 
 /**
- * Create structured log entry
- */
-function log(level: 'info' | 'warn' | 'error', message: string, data?: Record<string, unknown>) {
-  const entry = {
-    timestamp: new Date().toISOString(),
-    service: 'EscrowService',
-    level,
-    message,
-    ...data,
-  };
-
-  if (level === 'error') {
-    console.error(JSON.stringify(entry));
-  } else if (level === 'warn') {
-    console.warn(JSON.stringify(entry));
-  } else {
-    console.log(JSON.stringify(entry));
-  }
-}
-
-/**
  * Calculate exponential backoff delay
  */
 function getBackoffDelay(attempt: number): number {
@@ -267,7 +246,6 @@ const mockEscrows: Escrow[] = [];
  * Mock list escrows fetch for development
  */
 async function mockListEscrows(userPrincipal: string): Promise<Escrow[]> {
-  log('info', 'Mock list_escrows fetch', { userPrincipal });
   await sleep(500);
 
   // Filter escrows where user is recipient (in mock, all escrows have test-principal-1)
@@ -281,7 +259,7 @@ async function mockListEscrows(userPrincipal: string): Promise<Escrow[]> {
  * Mock get escrow by ID for development
  */
 async function mockGetEscrow(escrowId: bigint): Promise<Escrow | null> {
-  log('info', 'Mock get_escrow fetch', { escrowId: escrowId.toString() });
+  void escrowId;
   await sleep(300);
 
   return mockEscrows.find((e) => e.id === escrowId) || null;
@@ -291,7 +269,7 @@ async function mockGetEscrow(escrowId: bigint): Promise<Escrow | null> {
  * Mock get milestone status for development
  */
 async function mockGetMilestoneStatus(escrowId: bigint): Promise<Milestone[] | null> {
-  log('info', 'Mock get_milestone_status fetch', { escrowId: escrowId.toString() });
+  void escrowId;
   await sleep(200);
 
   const escrow = mockEscrows.find((e) => e.id === escrowId);
@@ -369,8 +347,6 @@ async function fetchMilestonesFromCanister(escrowId: bigint): Promise<Milestone[
  * Fetch user's escrows with retry logic
  */
 export async function fetchUserEscrows(userPrincipal: string): Promise<FetchEscrowsResult> {
-  log('info', 'Fetching user escrows', { userPrincipal });
-
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS; attempt++) {
@@ -383,36 +359,18 @@ export async function fetchUserEscrows(userPrincipal: string): Promise<FetchEscr
       );
 
       setUserEscrows(escrows);
-
-      log('info', 'User escrows fetched successfully', {
-        count: escrows.length,
-        attempt,
-      });
-
       return { success: true, escrows };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error('Unknown error');
-
-      log('warn', `Escrow fetch attempt ${attempt + 1} failed`, {
-        error: lastError.message,
-        attempt,
-      });
-
       if (attempt < MAX_RETRY_ATTEMPTS - 1) {
-        const backoffDelay = getBackoffDelay(attempt);
-        log('info', `Retrying after ${backoffDelay}ms`, { attempt });
-        await sleep(backoffDelay);
+        await sleep(getBackoffDelay(attempt));
       }
     }
   }
 
   const errorMessage = lastError?.message || 'Failed to fetch escrow data';
   setEscrowError(errorMessage);
-
-  log('error', 'Escrow fetch failed after all retries', {
-    error: errorMessage,
-  });
-
+  console.error(`EscrowService: fetch failed — ${errorMessage}`);
   return { success: false, error: errorMessage };
 }
 
@@ -420,8 +378,6 @@ export async function fetchUserEscrows(userPrincipal: string): Promise<FetchEscr
  * Fetch single escrow details
  */
 export async function fetchEscrowDetails(escrowId: bigint): Promise<FetchEscrowDetailsResult> {
-  log('info', 'Fetching escrow details', { escrowId: escrowId.toString() });
-
   try {
     const escrow = await withTimeout(fetchEscrowFromCanister(escrowId), REQUEST_TIMEOUT_MS);
 
@@ -429,19 +385,10 @@ export async function fetchEscrowDetails(escrowId: bigint): Promise<FetchEscrowD
       return { success: false, error: 'Escrow not found' };
     }
 
-    log('info', 'Escrow details fetched successfully', {
-      escrowId: escrowId.toString(),
-    });
-
     return { success: true, escrow };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-    log('error', 'Escrow details fetch failed', {
-      escrowId: escrowId.toString(),
-      error: errorMessage,
-    });
-
+    console.error(`EscrowService: details fetch failed for ${escrowId} — ${errorMessage}`);
     return { success: false, error: errorMessage };
   }
 }
@@ -450,8 +397,6 @@ export async function fetchEscrowDetails(escrowId: bigint): Promise<FetchEscrowD
  * Fetch milestones for an escrow
  */
 export async function fetchEscrowMilestones(escrowId: bigint): Promise<FetchMilestonesResult> {
-  log('info', 'Fetching escrow milestones', { escrowId: escrowId.toString() });
-
   try {
     const milestones = await withTimeout(fetchMilestonesFromCanister(escrowId), REQUEST_TIMEOUT_MS);
 
@@ -459,20 +404,10 @@ export async function fetchEscrowMilestones(escrowId: bigint): Promise<FetchMile
       return { success: false, error: 'Escrow not found' };
     }
 
-    log('info', 'Escrow milestones fetched successfully', {
-      escrowId: escrowId.toString(),
-      count: milestones.length,
-    });
-
     return { success: true, milestones };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-    log('error', 'Escrow milestones fetch failed', {
-      escrowId: escrowId.toString(),
-      error: errorMessage,
-    });
-
+    console.error(`EscrowService: milestones fetch failed for ${escrowId} — ${errorMessage}`);
     return { success: false, error: errorMessage };
   }
 }
@@ -481,7 +416,6 @@ export async function fetchEscrowMilestones(escrowId: bigint): Promise<FetchMile
  * Refresh escrow data (for manual refresh)
  */
 export async function refreshEscrowData(userPrincipal: string): Promise<FetchEscrowsResult> {
-  log('info', 'Manual escrow refresh triggered');
   return fetchUserEscrows(userPrincipal);
 }
 
@@ -496,7 +430,6 @@ export function getEscrowState(): EscrowState {
  * Clear escrow data (e.g., on logout)
  */
 export function clearEscrowData(): void {
-  log('info', 'Clearing escrow data');
   clearEscrow();
 }
 
