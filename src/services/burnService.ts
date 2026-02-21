@@ -135,6 +135,8 @@ function isMockMode(): boolean {
  * Create structured log entry
  */
 function log(level: 'info' | 'warn' | 'error', message: string, data?: Record<string, unknown>) {
+  if (import.meta.env.PROD && level !== 'error') return;
+
   const entry = {
     timestamp: new Date().toISOString(),
     service: 'BurnService',
